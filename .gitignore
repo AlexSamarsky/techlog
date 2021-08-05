@@ -1,0 +1,4 @@
+logs/*
+logs_new/*
+__pycache__
+.vscode/*
