@@ -1,6 +1,5 @@
-import shutil
-
-with open('seg_all.txt','wb') as wfd:
-    for f in ['seg1.txt','seg2.txt']:
-        with open(f,'rb') as fd:
-            shutil.copyfileobj(fd, wfd)
+arr = ['s', 'a']
+f = 'a'
+s = list(filter(lambda x: x==f, arr))
+if s:
+    print(s)

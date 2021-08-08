@@ -2,9 +2,9 @@ import os
 import multiprocessing as mp
 import re
 import time
+from Timer import Timer
 
-
-class TechLog:
+class TechLogFile:
     _pattern_start_record = re.compile(r"^\d{2}:\d{2}.\d{6}-\d+,")
     _file_in_name = ''
     _file_out_name = ''
@@ -13,21 +13,29 @@ class TechLog:
     _multitreading = False
     _file_out_stream = None
     _encoding = "utf-8-sig"
+    _main_timer_file = None
+    
 
     def __init__(self, file_in_name, file_out_name):
         self._file_in_name = file_in_name
         self._file_out_name = file_out_name
+        self._main_timer_file = Timer('TechLogFile')
     
     def _string_process_with_write(self, line):
         new_line = self.string_process(line)
         self._write_stream(new_line)
-  
+    
+    def filter_line(self, line):
+        return line
+    
     def string_process(self, line):
-        # time.sleep(0.5*random.random())
-        proc_name = mp.current_process().name
-        return f'{proc_name} / {line[:50]} \n'
+        new_line = line.strip("\n").replace('\n', '\\n')
+        new_line = self.filter_line(new_line)
+        return new_line
 
     def _write_stream(self, new_line):
+        if not new_line:
+            return
         if not new_line.endswith('\n'):
             new_line += '\n'
         self._file_out_stream.write(new_line)
@@ -69,18 +77,21 @@ class TechLog:
         yield ''
         yield ''
 
-    def file_process(self):
-
-        start_time = time.time()
-
+    def init_file_out_stream(self):
         self._file_out_stream = open(self._file_out_name, 'w', encoding=self._encoding)
+    
+    def main_process(self):
+
+        self._main_timer_file.start()
+
+        self.init_file_out_stream()
 
         if self._multitreading:
             task_queue = mp.Queue(self._NUMBERS_QUEUE)
             done_queue = mp.Queue(self._NUMBERS_QUEUE)
             file_read_iterator = self._chunkify()
             many_rows = True
-            for i in range(self._NUMBERS_QUEUE):
+            for _ in range(self._NUMBERS_QUEUE):
                 line = next(file_read_iterator)
                     
                 if not line:
@@ -92,7 +103,7 @@ class TechLog:
             cnt = task_queue.qsize() - 1
             
             procs_arr = []
-            for i in range(self._NUMBERS_CORES):
+            for _ in range(self._NUMBERS_CORES):
                 proc = mp.Process(target=self._worker_string_process, args=(task_queue, done_queue))
                 procs_arr.append(proc)
                 proc.start()
@@ -122,17 +133,22 @@ class TechLog:
             file_read_iterator = self._chunkify()
             while True:
                 line = next(file_read_iterator)
+               
                 self._string_process_with_write(line)
                 if not line:
                     break
         
-        finish_time = time.time()
-        print(finish_time - start_time)
+        if self._file_out_stream:
+            self._file_out_stream.close()
+        
+        self._main_timer_file.stop()
+        print(self._main_timer_file)
 
 
 if __name__ == '__main__':
-    file_in_name = 'test.log'
+    file_in_name = 'logs/'
+    # file_in_name = 'test.log'
     file_out_name = 'test_out.log'
-    tl = TechLog(file_in_name, file_out_name)
-    tl.file_process()
+    tl = TechLogFile(file_in_name, file_out_name)
+    tl.main_process()
     
