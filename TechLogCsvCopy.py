@@ -2,7 +2,7 @@ import re
 import os
 import shutil
 import time
-import numpy as np
+# import numpy as np
 
 from TechLogFile import TechLogFile
 from Timer import Timer
@@ -68,7 +68,7 @@ class TechLogCsv(TechLogFile):
             # self._dict_field_filter = {}
             # for field in self._array_field_filter:
                 # self._dict_field_filter[field] = 0
-            self._numpy_field_filter = np.array(sorted(self._array_field_filter))
+            # self._numpy_field_filter = np.array(sorted(self._array_field_filter))
             # self._string_field_filter = f',{self._string_field_filter},'
             
         super().main_process()

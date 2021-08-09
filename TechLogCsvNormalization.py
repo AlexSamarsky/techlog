@@ -1,6 +1,8 @@
 import re
 from TechLogCsv import TechLogCsv
 
+# filter_line - фильтровать на входе
+# field_value_process - обработка поля
 
 class TechLogCsvNormalization(TechLogCsv):
     

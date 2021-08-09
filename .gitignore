@@ -3,3 +3,5 @@ logs_new/*
 __pycache__
 .vscode/*
 logs_test/*
+old_scripts/*
+test_scripts/*
