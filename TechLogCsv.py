@@ -103,6 +103,9 @@ class TechLogCsv(TechLogFile):
     
     def convert_to_array(self, line):
         
+        if not line:
+            return []
+
         new_line = line
         
         string_array = ["" for n in range(len(self._array_fields))]

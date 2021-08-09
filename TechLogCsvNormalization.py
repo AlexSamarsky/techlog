@@ -1,7 +1,7 @@
 import re
 from TechLogCsv import TechLogCsv
 
-profile = True
+profile = False
 
 class TechLogCsvNormalization(TechLogCsv):
     
@@ -24,8 +24,10 @@ class TechLogCsvNormalization(TechLogCsv):
 
 def main():
     file_in_name = 'long_queries'
+    # file_in_name = 'long_queries/rphost_3552'
+    file_in_name = 'long_queries/rphost_3552/21080511.log'
     # file_in_name = 'logs_test/test.log'
-    file_out_name = 'logs_test/test_out.csv'
+    file_out_name = 'logs_test/test_out2.csv'
     file_field_filter_name = 'fields.txt'
     tlc = TechLogCsvNormalization(file_in_name, file_out_name, file_field_filter_name)
     tlc.main_process()
@@ -43,6 +45,6 @@ if __name__ == '__main__':
 
         profiler.disable()
         stats = pstats.Stats(profiler).sort_stats('tottime')
-        stats.print_stats()
+        stats.print_stats(10)
     else:
         main()

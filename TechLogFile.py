@@ -52,8 +52,6 @@ class TechLogFile:
         files_arr = []
         if os.path.isdir(path_or_file):
             for adress, _, files in os.walk(path_or_file, topdown=False):
-                # if not adress.endswith('/'):
-                #     adress += '/'
                 for file in files:
                     files_arr.append(os.path.join(adress, file))
         elif os.path.isfile(path_or_file):
@@ -61,20 +59,22 @@ class TechLogFile:
         
         for file_name in files_arr:
             with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
-                record_data = ''
+                lines = []
                 while True:
-                    line = f.readline()
-                    group = self._pattern_start_record.match(line)
-                    if group:
-                        if record_data:
-                            yield record_data
-                        record_data = line
-                    else:
+                    while True:
+                        line = f.readline()
                         if not line:
-                            if record_data:
-                                yield record_data
                             break
-                        record_data += line
+                        group = self._pattern_start_record.match(line)
+                        if group and lines:
+                            break
+                        else:
+                            lines.append(line)
+                    if lines:
+                        yield ''.join(lines)
+                    if not line:
+                        break
+                    lines = [line]
         yield ''
         yield ''
 
