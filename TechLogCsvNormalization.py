@@ -1,8 +1,7 @@
 import re
 from TechLogCsv import TechLogCsv
 
-# filter_line - фильтровать на входе
-# field_value_process - обработка поля
+profile = True
 
 class TechLogCsvNormalization(TechLogCsv):
     
@@ -22,11 +21,28 @@ class TechLogCsvNormalization(TechLogCsv):
             field_value = self._pattern_table4.sub(r'', field_value)
             field_value = self._pattern_table5.sub(r'({NUM})', field_value)
         return field_value
-    
-if __name__ == '__main__':
-    file_in_name = 'logs/'
+
+def main():
+    file_in_name = 'long_queries'
     # file_in_name = 'logs_test/test.log'
     file_out_name = 'logs_test/test_out.csv'
     file_field_filter_name = 'fields.txt'
     tlc = TechLogCsvNormalization(file_in_name, file_out_name, file_field_filter_name)
     tlc.main_process()
+
+if __name__ == '__main__':
+
+
+    if profile:
+    
+        import cProfile, pstats
+        profiler = cProfile.Profile()
+        profiler.enable()
+        
+        main()
+
+        profiler.disable()
+        stats = pstats.Stats(profiler).sort_stats('tottime')
+        stats.print_stats()
+    else:
+        main()

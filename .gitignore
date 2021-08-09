@@ -5,3 +5,4 @@ __pycache__
 logs_test/*
 old_scripts/*
 test_scripts/*
+long_queries/*
