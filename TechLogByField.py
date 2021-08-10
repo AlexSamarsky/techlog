@@ -8,7 +8,7 @@ profile = True
 class TechLogByField(TechLogFile):
     _session_id = ''
     _pattern_field = '' # re.compile(r',connectID=(\d+)')
-    _pattern_file_filter = re.compile(r'rphost_*')
+    _pattern_filter_file = re.compile(r'rphost_*')
     _pattern_contains_folder = None
     _array_files = []
 
@@ -55,11 +55,11 @@ class TechLogByField(TechLogFile):
 
         # self._file_out_stream.write(new_line)
 
-    def file_filter(self, file_name):
+    def filter_file(self, file_name):
         file_contains_folder = self._pattern_contains_folder.search(file_name)
         if file_contains_folder:
-            file_filter_search = self._pattern_file_filter.search(file_name)
-            if file_filter_search:
+            filter_file_search = self._pattern_filter_file.search(file_name)
+            if filter_file_search:
                 return file_name
         else:
             return file_name
