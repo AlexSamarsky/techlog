@@ -44,12 +44,12 @@ class TechLogCsv(TechLogFile):
 
         # csv_temp - шапка файла, temp - файл куда
         dirname = os.path.dirname(self._file_out_name)
-        if dirname:
-            dirname += '/'
+        # if dirname:
+            # dirname += '/'
         filename = os.path.basename(self._file_out_name)
         file_out_main_name = self._file_out_name
-        file_out_csv_temp_name = f'{dirname}temp_csv_{filename}'
-        self._file_out_name = f'{dirname}temp_{filename}'
+        file_out_csv_temp_name = os.path.join(dirname, f'temp_csv_{filename}')
+        self._file_out_name = os.path.join(dirname, f'temp_{filename}')
 
         with open(self._file_field_filter_name, "r", encoding=self._encoding, errors='replace') as file_field_filter:
             string_fields_filter = file_field_filter.readline()

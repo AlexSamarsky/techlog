@@ -6,3 +6,5 @@ logs_test/*
 old_scripts/*
 test_scripts/*
 long_queries/*
+logs_full/*
+WEB/*

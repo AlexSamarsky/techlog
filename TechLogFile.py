@@ -3,9 +3,11 @@ import multiprocessing as mp
 import re
 import time
 from Timer import Timer
+from pathlib import Path
 
 class TechLogFile:
-    _pattern_start_record = re.compile(r"^\d{2}:\d{2}.\d{6}-\d+,")
+    __pattern_start_record = re.compile(r"^\d{2,10}:\d{2}.\d{6}-\d+,")
+
     _file_in_name = ''
     _file_out_name = ''
     _NUMBERS_CORES = 2
@@ -14,23 +16,44 @@ class TechLogFile:
     _file_out_stream = None
     _encoding = "utf-8-sig"
     _main_timer_file = None
+    _current_file_name = ''
     
 
     def __init__(self, file_in_name, file_out_name):
         self._file_in_name = file_in_name
         self._file_out_name = file_out_name
         self._main_timer_file = Timer('TechLogFile')
+        self._start_time = 0
+        self._end_time = 999999999999
     
+    def set_time(self, start_time, end_time):
+        if end_time < start_time:
+            raise ValueError('End time can\'t be lower than start time')
+        self._start_time = start_time
+        if end_time:
+            self._end_time = end_time
+        else:
+            self._end_time = 999999999999
+
+    def get_time(self):
+        return [self._start_time, self._end_time]
+
     def _string_process_with_write(self, line):
-        new_line = self.string_process(line)
+        new_line = self.string_process(line, self._current_file_name)
         self._write_stream(new_line)
     
-    def filter_line(self, line):
+    def filter_line(self, line, current_file_name = None):
         return line
     
-    def string_process(self, line):
+    def string_process(self, line, current_file_name = None):
         new_line = line.strip("\n").replace('\n', '\\n')
-        new_line = self.filter_line(new_line)
+        if self._start_time or self._end_time :
+            mmss = line[:5].replace(':', '', 1)
+            time_string = f'{current_file_name}{mmss}'
+            time_int = int(time_string)
+            if time_int < self._start_time or time_int > self._end_time:
+                return ''
+        new_line = self.filter_line(new_line, self._current_file_name)
         return new_line
 
     def _write_stream(self, new_line):
@@ -47,39 +70,80 @@ class TechLogFile:
             self._write_stream(result)
             output.put(result)
 
-    def _chunkify(self):
+    def file_filter(self, file_name):
+        return file_name
+
+    def __get_files(self):
         path_or_file = self._file_in_name
         files_arr = []
-        if os.path.isdir(path_or_file):
-            for adress, _, files in os.walk(path_or_file, topdown=False):
-                for file in files:
-                    files_arr.append(os.path.join(adress, file))
-        elif os.path.isfile(path_or_file):
-            files_arr.append(path_or_file)
-        
-        for file_name in files_arr:
-            with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
-                lines = []
-                while True:
-                    while True:
-                        line = f.readline()
-                        if not line:
-                            break
-                        group = self._pattern_start_record.match(line)
-                        if group and lines:
-                            break
-                        else:
-                            lines.append(line)
-                    if lines:
-                        yield ''.join(lines)
-                    if not line:
-                        break
-                    lines = [line]
+        try:
+            if os.path.isdir(path_or_file):
+                p = Path(path_or_file)
+                for f in p.glob('**/*'):
+                    if os.path.isfile(f):
+                # for adress, _, files in os.walk(path_or_file, topdown=False):
+                #     for file in files:
+                        files_arr.append(str(f))
+            elif os.path.isfile(path_or_file):
+                files_arr.append(path_or_file)
+            return files_arr
+        except FileNotFoundError:
+            return files_arr
+    
+    def delete_out_file(self):
+        if os.path.isdir(self._file_out_name):
+            p = Path(self._file_out_name)
+            for f in p.glob('*'):
+                if os.path.isfile(f):
+                    os.remove(str(f))
+                    # print(f)
+        elif os.path.isfile(self._file_out_name):
+            # print(self._file_out_name)
+            os.remove(self._file_out_name)
+
+    def __chunkify(self):
+        files_arr = self.__get_files()
+        # path_or_file = self._file_in_name
+        # files_arr = []
+        # if os.path.isdir(path_or_file):
+        #     for adress, _, files in os.walk(path_or_file, topdown=False):
+        #         for file in files:
+        #             files_arr.append(os.path.join(adress, file))
+        # elif os.path.isfile(path_or_file):
+        #     files_arr.append(path_or_file)
+        if files_arr:
+            for file_name in files_arr:
+                file_name = self.file_filter(file_name)
+                if file_name:
+                    # self._current_file_name = os.path.basename(file_name)
+                    self._current_file_name = Path(file_name).stem
+                    with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
+                        lines = []
+                        while True:
+                            while True:
+                                line = f.readline()
+                                if not line:
+                                    break
+                                group = self.__pattern_start_record.match(line)
+                                if group and lines:
+                                    break
+                                else:
+                                    lines.append(line)
+                            if lines:
+                                yield ''.join(lines)
+                            if not line:
+                                break
+                            lines = [line]
         yield ''
         yield ''
 
     def init_file_out_stream(self):
-        self._file_out_stream = open(self._file_out_name, 'w', encoding=self._encoding)
+        last_arg = os.path.basename(self._file_out_name)
+        search_dot = re.search(r'\.', last_arg)
+        if search_dot:
+            self._file_out_stream = open(self._file_out_name, 'w', encoding=self._encoding)
+        else:
+            self._file_out_stream = None
     
     def main_process(self):
 
@@ -90,7 +154,7 @@ class TechLogFile:
         if self._multitreading:
             task_queue = mp.Queue(self._NUMBERS_QUEUE)
             done_queue = mp.Queue(self._NUMBERS_QUEUE)
-            file_read_iterator = self._chunkify()
+            file_read_iterator = self.__chunkify()
             many_rows = True
             for _ in range(self._NUMBERS_QUEUE):
                 line = next(file_read_iterator)
@@ -131,7 +195,7 @@ class TechLogFile:
                 proc.join()
                 proc.close()
         else:
-            file_read_iterator = self._chunkify()
+            file_read_iterator = self.__chunkify()
             while True:
                 line = next(file_read_iterator)
                
