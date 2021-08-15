@@ -1,14 +1,16 @@
 import os
-import multiprocessing as mp
 import re
 from datetime import date, datetime
-from typing import AnyStr, Iterable, Iterator, List, Match
+from typing import List, Match, Pattern
+from math import floor
 
 from Timer import Timer
 from pathlib import Path
 
+profile = True
+
 class TechLogFile:
-    __pattern_start_record: re.Pattern = re.compile(r"^\d{2,12}:\d{2}\.\d{6}-\d+,")
+    __pattern_start_record: re.Pattern = re.compile(r"^(\d{2,12}):(\d{2})\.\d{6}-\d+,")
     __strptime: str = "%y%m%d%H%M%S"
 
     _file_in_name = ''
@@ -28,6 +30,7 @@ class TechLogFile:
         self._start_time: date = None
         self._end_time: date = None
         self._filter_time: bool = False
+        self._line_filters = []
     
     def set_time(self, start_time: date, end_time: date) -> None:
         if end_time < start_time:
@@ -48,6 +51,12 @@ class TechLogFile:
         else:
             self._end_time = None
 
+    def set_line_filters(self, list_filter):
+        self._line_filters = []
+        if list_filter:
+            for line_filter in list_filter:
+                self._line_filters.append(re.compile(r'' + line_filter))
+
     def get_time(self) -> List[date]:
         return [datetime.strptime(self._start_time, self.__strptime), datetime.strptime(self._end_time, self.__strptime)]
 
@@ -55,16 +64,25 @@ class TechLogFile:
         new_line: str = self.string_process(line, self._current_file_name)
         self._write_stream(new_line)
     
-    def filter_line(self, line: str, current_file_name: str = None) -> str:
+    def filter_line(self, line: str) -> str:
+        if line and self._line_filters:
+            line_filtered: bool = True
+            re_line_filter: Match = None
+            for re_line_filter in self._line_filters:
+                re_search = re_line_filter.search(line)
+                if not re_search:
+                    line_filtered = False
+            if not line_filtered:
+                line = ''
         return line
     
     def filter_time(self, event_time: str) -> int:
         if not self._filter_time:
             return 0
         len_event: int = len(event_time)
-        if (self._start_time and self._start_time[:len_event] < event_time):
+        if (self._start_time and event_time < self._start_time[:len_event]):
             return -1
-        if (self._end_time and self._end_time[:len_event] > event_time):
+        if (self._end_time and event_time > self._end_time[:len_event]):
             return 1
         return 0
     
@@ -74,13 +92,13 @@ class TechLogFile:
         return file_name
 
     def string_process(self, line: str, current_file_name: str = None) -> str:
+        # if self._filter_time:
+        #     mmss: str = line[:5].replace(':', '', 1)
+        #     time_string: str = f'{current_file_name}{mmss}'
+        #     if not self.filter_time(time_string):
+        #         return ''
         new_line: str = line.strip("\n").replace('\n', '\\n')
-        if self._filter_time:
-            mmss: str = line[:5].replace(':', '', 1)
-            time_string: str = f'{current_file_name}{mmss}'
-            if not self.filter_time(time_string):
-                return ''
-        new_line = self.filter_line(new_line, self._current_file_name)
+        new_line = self.filter_line(new_line)
         return new_line
 
     def _write_stream(self, new_line: str) -> None:
@@ -89,13 +107,6 @@ class TechLogFile:
         if not new_line.endswith('\n'):
             new_line += '\n'
         self._file_out_stream.write(new_line)
-
-    def _worker_string_process(self, input, output):
-        """Функция, выполняемая рабочими процессами"""
-        for line in iter(input.get, 'STOP'):
-            result = self._string_process_with_write(line)
-            self._write_stream(result)
-            output.put(result)
 
     def __get_files(self) -> List[str]:
         path_or_file: str = self._file_in_name
@@ -123,37 +134,94 @@ class TechLogFile:
                         os.remove(str(f))
             elif os.path.isfile(self._file_out_name):
                 os.remove(self._file_out_name)
+    
+    def seek_position(self, file_name) -> int:
+        with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
+            portion: int = 1_000_000
+            p: Path = Path(file_name)
+            file_size: int = p.stat().st_size
+            count_seeks: int = floor(file_size / portion)
+            # if file_size > 100_000_000:
+            #     count_seeks = 1000
+            last_actual_seek_position: int = 0
+            if count_seeks:
+                founded_position = False
+                for i in range(count_seeks - 1):
+                    f.seek(i * portion)
+                    if i > 0:
+                        f.readline()
+                    for _ in range(1000):
+                        seek_position = f.tell()
+                        line: str = f.readline()
+                        match_new_line: Match[str] = self.__pattern_start_record.match(line)
+                        if match_new_line:
+                            groups = match_new_line.groups()
+                            event_time = self._current_file_name + groups[0] + groups[1]
 
-    def __chunkify(self) -> Iterator[str]:
-        files_arr: List[str] = self.__get_files()
-        file_name: str = ''
-        line: str = ''
+                            filter_time_result = self.filter_time(event_time)
+                            if filter_time_result == -1:
+                                last_actual_seek_position = seek_position
+                            else:
+                                founded_position = True
+                            break
+                    if founded_position:
+                        break
+        return last_actual_seek_position
+
+
+    def process_file(self, file_name: str) -> None:
+        event_line: str = ''
+        # event_time: str = ''
+        filter_time_result: int = 0
         
-        if files_arr:
-            for file_name in files_arr:
-                file_name = self.filter_file(file_name)
-                if file_name:
-                    # self._current_file_name = os.path.basename(file_name)
-                    self._current_file_name: str = Path(file_name).stem
-                    with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
-                        lines: List[str] = []
-                        while True:
-                            while True:
-                                line = f.readline()
-                                if not line:
-                                    break
-                                group: Match[str] = self.__pattern_start_record.match(line)
-                                if group and lines:
-                                    break
-                                else:
-                                    lines.append(line)
+        file_name = self.filter_file(file_name)
+        if file_name:
+            skip_file: bool = False
+            # self._current_file_name = os.path.basename(file_name)
+            self._current_file_name: str = Path(file_name).stem
+            if self.filter_time(self._current_file_name) != 0:
+                return
+
+            with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
+                if self._filter_time:
+                    file_position: int = self.seek_position(file_name)
+                    f.seek(file_position)
+
+
+                lines: List[str] = []
+                while True:
+                    for _ in range(1000):
+                        line = f.readline()
+                        if not line:
+                            break
+                        match_new_line: Match[str] = self.__pattern_start_record.match(line)
+                        if match_new_line:
+                            if self._filter_time:
+                                groups = match_new_line.groups()
+                                next_event_time = self._current_file_name + groups[0] + groups[1]
                             if lines:
-                                yield ''.join(lines)
-                            if not line:
                                 break
-                            lines = [line]
-        yield ''
-        yield ''
+                            else:
+                                event_time = next_event_time
+                        else:
+                            lines.append(line)
+                    if lines:
+                        if self._filter_time:
+                            filter_time_result = self.filter_time(event_time)
+                            if filter_time_result == -1:
+                                event_line = ''
+                            elif filter_time_result == 0: 
+                                event_line = ''.join(lines)
+                            elif filter_time_result == 1:
+                                skip_file = True
+                                event_line = ''
+                        else:
+                            event_line = ''.join(lines)
+                        self._string_process_with_write(event_line)
+                    if not line or skip_file:
+                        break
+                    lines = [line]
+                    event_time = next_event_time
 
     def init_file_out_stream(self):
         last_arg: str = os.path.basename(self._file_out_name)
@@ -169,57 +237,18 @@ class TechLogFile:
 
         self.init_file_out_stream()
 
-        if self._multitreading:
-            task_queue = mp.Queue(self._NUMBERS_QUEUE)
-            done_queue = mp.Queue(self._NUMBERS_QUEUE)
-            file_read_iterator = self.__chunkify()
-            many_rows = True
-            for _ in range(self._NUMBERS_QUEUE):
-                line = next(file_read_iterator)
-                    
-                if not line:
-                    many_rows = False
-                    task_queue.put('STOP')
-                    break
-                task_queue.put(line)
-            
-            cnt = task_queue.qsize() - 1
-            
-            procs_arr = []
-            for _ in range(self._NUMBERS_CORES):
-                proc = mp.Process(target=self._worker_string_process, args=(task_queue, done_queue))
-                procs_arr.append(proc)
-                proc.start()
-            
-            if many_rows:
-                while True:
-                    result = done_queue.get(timeout=1)
-                    # print('\t', result)
-                    line = next(file_read_iterator)
-                    if not line:
-                        task_queue.put('STOP')
-                        break
-                    task_queue.put(line)
+        files_arr: List[str] = self.__get_files()
+        if files_arr:
+            for file_name in files_arr:
+                self.process_file(file_name)
 
-            while cnt:
-                result = done_queue.get(timeout=1)
-                # print('\t', result)
-                cnt -= 1
+        # file_read_iterator: Iterator[str] = self.__chunkify()
+        # while True:
+        #     line: str = next(file_read_iterator)
             
-            task_queue.put('STOP')
-            # done_queue.get(timeout=1)
-
-            for proc in procs_arr:
-                proc.join()
-                proc.close()
-        else:
-            file_read_iterator: Iterator[str] = self.__chunkify()
-            while True:
-                line: str = next(file_read_iterator)
-               
-                self._string_process_with_write(line)
-                if not line:
-                    break
+        #     self._string_process_with_write(line)
+        #     if not line:
+        #         break
         
         if self._file_out_stream:
             self._file_out_stream.close()
@@ -228,11 +257,36 @@ class TechLogFile:
         print(self._main_timer_file)
 
 
-if __name__ == '__main__':
+def main():
     file_in_name = 'logs/'
-    file_in_name = 'logs_full/21081014.log'
-    file_out_name = 'logs_test/test_out.log'
+    file_in_name = 'logs_full/rphost_4132/21081014.log'
+    # file_in_name = 'web/rphost_4132/21081008.log'
+    file_in_name = '//Onyx-1c-ppo2/Logz/PPO_Store_FULL/rphost_3636'
+    file_out_name = 'logs_test/ppo_out.log'
+
+
+    file_in_name = 'logs_test/ppo2/21042610.log'
+    file_out_name = 'logs_test/ppo_out2.log'
+
     tl = TechLogFile(file_in_name, file_out_name)
-    tl.set_time(datetime(2021, 8, 10, 14, 0), datetime(2021, 8, 10, 14, 10))
+
+    tl.set_time(datetime(2021, 4, 26, 10, 1), datetime(2021, 4, 26, 10, 2))
+    tl.set_line_filters([',VRSRESPONSE,|,VRSREQUEST,'])
+    # tl.set_time(datetime(2021, 8, 10, 8, 10), datetime(2021, 8, 10, 8, 20))
     tl.main_process()
+
+if __name__ == '__main__':
     
+    if profile:
+
+        import cProfile, pstats
+        profiler = cProfile.Profile()
+        profiler.enable()
+        
+        main()
+
+        profiler.disable()
+        stats = pstats.Stats(profiler).sort_stats('tottime')
+        stats.print_stats(10)
+    else:
+        main()
