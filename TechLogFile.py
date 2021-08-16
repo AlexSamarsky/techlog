@@ -10,7 +10,7 @@ from pathlib import Path
 profile = True
 
 class TechLogFile:
-    __pattern_start_record: re.Pattern = re.compile(r"^(\d{2,12}):(\d{2})\.\d{6}-\d+,")
+    _pattern_start_record: re.Pattern = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{6})-(\d+),", flags=re.MULTILINE)
     __strptime: str = "%y%m%d%H%M%S"
 
     _file_in_name = ''
@@ -22,6 +22,7 @@ class TechLogFile:
     _encoding: str = "utf-8-sig"
     # _main_timer_file = None
     _current_file_name = ''
+    _new_file_process = True
 
     def __init__(self, file_in_name: str, file_out_name: str) -> None:
         self._file_in_name: str = file_in_name
@@ -87,7 +88,7 @@ class TechLogFile:
         return 0
     
     def filter_file(self, file_name: str) -> str:
-        if not self.filter_time(file_name):
+        if self.filter_time(file_name) != 0:
             return ''
         return file_name
 
@@ -97,8 +98,9 @@ class TechLogFile:
         #     time_string: str = f'{current_file_name}{mmss}'
         #     if not self.filter_time(time_string):
         #         return ''
-        new_line: str = line.strip("\n").replace('\n', '\\n')
-        new_line = self.filter_line(new_line)
+        # new_line = line
+        # new_line: str = line.strip("\n").replace('\n', '\\n')
+        new_line = self.filter_line(line)
         return new_line
 
     def _write_stream(self, new_line: str) -> None:
@@ -106,7 +108,7 @@ class TechLogFile:
             return
         if not new_line.endswith('\n'):
             new_line += '\n'
-        self._file_out_stream.write(new_line.replace('\\n', '\n'))
+        self._file_out_stream.write(new_line)
 
     def __get_files(self) -> List[str]:
         path_or_file: str = self._file_in_name
@@ -136,26 +138,23 @@ class TechLogFile:
                 os.remove(self._file_out_name)
     
     def seek_position(self, file_name, start_seek: int = None) -> int:
+        
         with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
             p: Path = Path(file_name)
             file_size: int = p.stat().st_size
-            # first_portion = floor(file_size/10)
             last_actual_seek_position: int = 0
             portion: int = file_size
             if not start_seek:
                 start_seek: int = last_actual_seek_position
+                
             for _ in range(10):
                 if portion < 100_000:
                     break
                 else:
                     portion = floor(portion / 10)
                     start_seek: int = last_actual_seek_position
-                    # f.seek(start_seek)
-
             
                 count_seeks: int = floor(file_size / portion)
-                # if file_size > 100_000_000:
-                #     count_seeks = 1000
                 if count_seeks:
                     founded_position = False
                     for i in range(count_seeks - 1):
@@ -169,7 +168,7 @@ class TechLogFile:
                             if not line:
                                 founded_position = True
                                 break
-                            match_new_line: Match[str] = self.__pattern_start_record.match(line)
+                            match_new_line: Match[str] = self._pattern_start_record.match(line)
                             if match_new_line:
                                 groups = match_new_line.groups()
                                 event_time = self._current_file_name + groups[0] + groups[1]
@@ -205,41 +204,93 @@ class TechLogFile:
                     file_position: int = self.seek_position(file_name)
                     f.seek(file_position)
 
-
-                lines: List[str] = []
-                while True:
-                    for _ in range(1000):
-                        line = f.readline()
-                        if not line:
+                if self._new_file_process:
+                    skip_file = False
+                    size_read = 10_000
+                    text = ''
+                    while True:
+                        read_text = f.read(size_read)
+                        if read_text:
+                            text += read_text
+                            prev_match = None
+                            for match in self._pattern_start_record.finditer(text):
+                                if not prev_match:
+                                    prev_match = match
+                                    continue
+                                groups = match.groups()
+                                if self._filter_time:
+                                    event_time = self._current_file_name + groups[0] + groups[1] + groups[2]
+                                    filter_time_result = self.filter_time(event_time)
+                                    if filter_time_result == -1:
+                                        event_line = ''
+                                    elif filter_time_result == 0: 
+                                        event_line = text[prev_match.start():match.start()]
+                                    elif filter_time_result == 1:
+                                        skip_file = True
+                                        event_line = ''
+                                        break
+                                else:
+                                    event_line = text[prev_match.start():match.start()]
+                                if event_line:
+                                    self._string_process_with_write(event_line)
+                            if skip_file:
+                                break
+                            if match and prev_match:
+                                text = text[match.start():]
+                            
+                        else:
+                            if text:
+                                if self._filter_time:
+                                    event_time = self._current_file_name + groups[0] + groups[1] + groups[2]
+                                    if self.filter_time(event_time) == 0:
+                                        event_line = text
+                                else:
+                                    event_line = text
+                                if event_line:
+                                    self._string_process_with_write(event_line)
                             break
-                        match_new_line: Match[str] = self.__pattern_start_record.match(line)
-                        if match_new_line:
-                            if self._filter_time:
+                        # match_begin_event = self._pattern_start_record.findall(text)
+                        # if match_begin_event:
+                        #     # groups_begin_event = match_begin_event.groups()
+                        #     for match_num, match in enumerate(match_begin_event):
+                        #         # group = groups_begin_event[match_num]
+                        #         pass
+                                # event_len = 
+                else:
+                    lines: List[str] = []
+                    while True:
+                        for _ in range(1000):
+                            line = f.readline()
+                            if not line:
+                                break
+                            match_new_line: Match[str] = self._pattern_start_record.match(line)
+                            if match_new_line:
+                                # if self._filter_time:
                                 groups = match_new_line.groups()
                                 next_event_time = self._current_file_name + groups[0] + groups[1]
-                            if lines:
-                                break
+                                if lines:
+                                    break
+                                else:
+                                    event_time = next_event_time
                             else:
-                                event_time = next_event_time
-                        else:
-                            lines.append(line)
-                    if lines:
-                        if self._filter_time:
-                            filter_time_result = self.filter_time(event_time)
-                            if filter_time_result == -1:
-                                event_line = ''
-                            elif filter_time_result == 0: 
+                                lines.append(line)
+                        if lines:
+                            if self._filter_time:
+                                filter_time_result = self.filter_time(event_time)
+                                if filter_time_result == -1:
+                                    event_line = ''
+                                elif filter_time_result == 0: 
+                                    event_line = ''.join(lines)
+                                elif filter_time_result == 1:
+                                    skip_file = True
+                                    event_line = ''
+                            else:
                                 event_line = ''.join(lines)
-                            elif filter_time_result == 1:
-                                skip_file = True
-                                event_line = ''
-                        else:
-                            event_line = ''.join(lines)
-                        self._string_process_with_write(event_line)
-                    if not line or skip_file:
-                        break
-                    lines = [line]
-                    event_time = next_event_time
+                            self._string_process_with_write(event_line)
+                        if not line or skip_file:
+                            break
+                        lines = [line]
+                        event_time = next_event_time
 
     def init_file_out_stream(self):
         last_arg: str = os.path.basename(self._file_out_name)
@@ -260,14 +311,6 @@ class TechLogFile:
             for file_name in files_arr:
                 self.process_file(file_name)
 
-        # file_read_iterator: Iterator[str] = self.__chunkify()
-        # while True:
-        #     line: str = next(file_read_iterator)
-            
-        #     self._string_process_with_write(line)
-        #     if not line:
-        #         break
-        
         if self._file_out_stream:
             self._file_out_stream.close()
         
@@ -292,12 +335,13 @@ def main():
     # tl.main_process()
 
 
-    file_in_name = 'Logs_full/rphost_4132'
+    # file_in_name = 'Logs_full/rphost_4132'
+    file_in_name = 'logs/21062214.log'
     file_out_name = 'logs_test/21081615.log'
     tl = TechLogFile(file_in_name, file_out_name)
-    tl.set_time(datetime(2021, 8, 16, 15, 00, 00, 41002), datetime(2021, 8, 16, 15, 0,  3, 681114))
+    # tl.set_time(datetime(2021, 8, 16, 15, 00, 00, 41002), datetime(2021, 8, 16, 15, 0,  3, 681114))
     # tl.set_time(datetime(2021, 8, 16, 14, 59, 59, 41002), datetime(2021, 8, 16, 15, 0,  3, 681114))
-    tl.set_line_filters([',t:connectID=49613'])
+    # tl.set_line_filters([',t:connectID=49613'])
     # tl.set_time(datetime(2021, 8, 10, 8, 10), datetime(2021, 8, 10, 8, 20))
     tl.main_process()
 

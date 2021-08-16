@@ -200,17 +200,18 @@ class LogReaderBase(LogBase):
                     
                     
                     if event_line:
-                        tech_log_event = TechLogEvent(
-                                            line=event_line,
-                                            time=event_time,
-                                            file_path=file_path,
-                                            rphost=rphost,
-                                            file_pos=previous_event_pos,
-                                            event_len=len(event_line)
-                                            )
+                        if self.filter_time(event_time) == 0:
+                            tech_log_event = TechLogEvent(
+                                                line=event_line,
+                                                time=event_time,
+                                                file_path=file_path,
+                                                rphost=rphost,
+                                                file_pos=previous_event_pos,
+                                                event_len=len(event_line)
+                                                )
+                            self.execute_handlers(tech_log_event)
+
                         previous_event_pos = next_event_begin_pos
-                        
-                        self.execute_handlers(tech_log_event)
                 if not file_line or skip_file:
                     break
                 lines = [file_line]
