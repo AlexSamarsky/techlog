@@ -89,11 +89,20 @@ def main():
 
 
 
-    file_in_name = 'logs_full'
-    file_out_name = 'logs_test/web'
+    # file_in_name = 'logs_full'
+    # file_out_name = 'logs_test/web'
+    # field_name = 'connectID'
+    # tl = TechLogByField(file_in_name, file_out_name, field_name)
+    # tl.set_time(datetime(2021, 8, 10, 13, 50), datetime(2021, 8, 10, 13, 51))
+
+    file_in_name = '//app-bill-nord/logz_full/Logs_full'
+    file_out_name = 'logs_test/web2'
     field_name = 'connectID'
     tl = TechLogByField(file_in_name, file_out_name, field_name)
-    tl.set_time(datetime(2021, 8, 10, 13, 50), datetime(2021, 8, 10, 13, 51))
+    tl.set_time(datetime(2021, 8, 16, 14, 59, 40), datetime(2021, 8, 16, 15, 1,  20))
+    tl.set_line_filters([',VRSRESPONSE,|,VRSREQUEST,'])
+
+
     tl.delete_out_file()
     tl.main_process()
 

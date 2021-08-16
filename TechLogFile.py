@@ -106,7 +106,7 @@ class TechLogFile:
             return
         if not new_line.endswith('\n'):
             new_line += '\n'
-        self._file_out_stream.write(new_line)
+        self._file_out_stream.write(new_line.replace('\\n', '\n'))
 
     def __get_files(self) -> List[str]:
         path_or_file: str = self._file_in_name
@@ -135,36 +135,54 @@ class TechLogFile:
             elif os.path.isfile(self._file_out_name):
                 os.remove(self._file_out_name)
     
-    def seek_position(self, file_name) -> int:
+    def seek_position(self, file_name, start_seek: int = None) -> int:
         with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
-            portion: int = 1_000_000
             p: Path = Path(file_name)
             file_size: int = p.stat().st_size
-            count_seeks: int = floor(file_size / portion)
-            # if file_size > 100_000_000:
-            #     count_seeks = 1000
+            # first_portion = floor(file_size/10)
             last_actual_seek_position: int = 0
-            if count_seeks:
-                founded_position = False
-                for i in range(count_seeks - 1):
-                    f.seek(i * portion)
-                    if i > 0:
-                        f.readline()
-                    for _ in range(1000):
-                        seek_position = f.tell()
-                        line: str = f.readline()
-                        match_new_line: Match[str] = self.__pattern_start_record.match(line)
-                        if match_new_line:
-                            groups = match_new_line.groups()
-                            event_time = self._current_file_name + groups[0] + groups[1]
+            portion: int = file_size
+            if not start_seek:
+                start_seek: int = last_actual_seek_position
+            for _ in range(10):
+                if portion < 100_000:
+                    break
+                else:
+                    portion = floor(portion / 10)
+                    start_seek: int = last_actual_seek_position
+                    # f.seek(start_seek)
 
-                            filter_time_result = self.filter_time(event_time)
-                            if filter_time_result == -1:
-                                last_actual_seek_position = seek_position
-                            else:
+            
+                count_seeks: int = floor(file_size / portion)
+                # if file_size > 100_000_000:
+                #     count_seeks = 1000
+                if count_seeks:
+                    founded_position = False
+                    for i in range(count_seeks - 1):
+                        current_seek = start_seek + i * portion
+                        f.seek(current_seek)
+                        if current_seek > 0:
+                            f.readline()
+                        for _ in range(1000):
+                            seek_position = f.tell()
+                            line: str = f.readline()
+                            if not line:
                                 founded_position = True
+                                break
+                            match_new_line: Match[str] = self.__pattern_start_record.match(line)
+                            if match_new_line:
+                                groups = match_new_line.groups()
+                                event_time = self._current_file_name + groups[0] + groups[1]
+
+                                filter_time_result = self.filter_time(event_time)
+                                if filter_time_result == -1:
+                                    last_actual_seek_position = seek_position
+                                else:
+                                    founded_position = True
+                                break
+                        if founded_position:
                             break
-                    if founded_position:
+                    if not current_seek:
                         break
         return last_actual_seek_position
 
@@ -265,13 +283,21 @@ def main():
     file_out_name = 'logs_test/ppo_out.log'
 
 
-    file_in_name = 'logs_test/ppo2/21042610.log'
-    file_out_name = 'logs_test/ppo_out2.log'
+    # file_in_name = 'logs_test/ppo2/21042610.log'
+    # file_out_name = 'logs_test/ppo_out2.log'
+    # tl = TechLogFile(file_in_name, file_out_name)
+    # tl.set_time(datetime(2021, 4, 26, 10, 1), datetime(2021, 4, 26, 10, 2))
+    # tl.set_line_filters([',VRSRESPONSE,|,VRSREQUEST,'])
+    # # tl.set_time(datetime(2021, 8, 10, 8, 10), datetime(2021, 8, 10, 8, 20))
+    # tl.main_process()
 
+
+    file_in_name = 'Logs_full/rphost_4132'
+    file_out_name = 'logs_test/21081615.log'
     tl = TechLogFile(file_in_name, file_out_name)
-
-    tl.set_time(datetime(2021, 4, 26, 10, 1), datetime(2021, 4, 26, 10, 2))
-    tl.set_line_filters([',VRSRESPONSE,|,VRSREQUEST,'])
+    tl.set_time(datetime(2021, 8, 16, 15, 00, 00, 41002), datetime(2021, 8, 16, 15, 0,  3, 681114))
+    # tl.set_time(datetime(2021, 8, 16, 14, 59, 59, 41002), datetime(2021, 8, 16, 15, 0,  3, 681114))
+    tl.set_line_filters([',t:connectID=49613'])
     # tl.set_time(datetime(2021, 8, 10, 8, 10), datetime(2021, 8, 10, 8, 20))
     tl.main_process()
 
