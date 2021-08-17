@@ -1,11 +1,21 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from io import TextIOWrapper
 import re
+
+@dataclass
+class TechLogFile:
+    file_name: str
+    raw_position: int = -1
+    rel_path: str = ''
+    file_io: TextIOWrapper = None
+    stem: str = ''
+
 
 @dataclass(frozen=True)
 class RawLogProps:
     time: datetime
-    file_path: str
+    file: TechLogFile
     file_pos: int
     duration: int
     name: str
@@ -45,10 +55,10 @@ class TechLogPeriod:
         if self.start_time or self.end_time:
             self.filter_time = True
             if self.start_time:
-                self.start_time_str = self.start_time.strftime(TimePatterns.template_time_full)
+                self.start_time_str = self.start_time.strftime(TimePatterns.format_time_full)
 
             if self.end_time:
-                self.end_time_str = self.end_time.strftime(TimePatterns.template_time_full)
+                self.end_time_str = self.end_time.strftime(TimePatterns.format_time_full)
             else:
                 self.end_time = datetime(9999, 12, 30)
                 self.end_time_str = '999999999999'
@@ -58,17 +68,12 @@ class TechLogPeriod:
         
             
     
-@dataclass
-class TechLogFile:
-    file_name: str
-    raw_position: int = -1
-
-
 class RePatterns:
     re_rphost = re.compile(r'rphost_([\d]+)')
     re_new_event = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),")
 
 class TimePatterns:
-    template_time: str = "%y%m%d%H%M%S"
-    template_time_full: str = "%y%m%d%H%M%S%f"
-    template_file_date: str = "%y%m%d%H"
+    format_time: str = "%y%m%d%H%M%S"
+    format_time_full: str = "%y%m%d%H%M%S%f"
+    format_date_hour: str = "%y%m%d%H"
+    format_time_minute: str = "%y%m%d%H%M"

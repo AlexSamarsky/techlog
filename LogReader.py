@@ -6,7 +6,7 @@ from datetime import datetime
 from math import floor
 
 from LogBase import LogBase
-from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TimePatterns, RePatterns
+from LogDataclasses import TechLogEvent, TechLogFile, RawLogProps, TimePatterns, RePatterns
 
 class LogReaderBase(LogBase):
     
@@ -27,15 +27,23 @@ class LogReaderBase(LogBase):
     def __seek_files(self) -> List[str]:
         path_or_file: str = self._files_path
         self._files_path: List[TechLogFile] = []
+        
         try:
             if os.path.isdir(path_or_file):
                 p: Path = Path(path_or_file)
                 for f in p.glob('**/*'):
                     if os.path.isfile(f):
-                        self._files_path.append(TechLogFile(str(f)))
+                        path_list = f.parts[len(p.parts):-3]
+                        if len(path_list):
+                            rel_path = os.path.join(path_list)
+                        self._files_path.append(TechLogFile(
+                                                    file_name=str(f),
+                                                    rel_path=rel_path,
+                                                    
+                                                ))
                         # self.__filter_file(str(f))
             elif os.path.isfile(path_or_file):
-                self._files_path.append(TechLogFile(path_or_file))
+                self._files_path.append(TechLogFile(file_name=path_or_file))
                 # self.__filter_file(path_or_file)
         except FileNotFoundError:
             pass
@@ -104,44 +112,11 @@ class LogReaderBase(LogBase):
                         break
         return last_actual_seek_position
 
-        # p = Path(file_name)
-        # # file_path: Path = p.absolute()
-        # time_in_file = p.stem
-        # with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
-        #     portion: int = 1_000_000
-        #     p: Path = Path(file_name)
-        #     file_size: int = p.stat().st_size
-        #     count_seeks: int = floor(file_size / portion)
-        #     last_actual_seek_position: int = 0
-            
-        #     if count_seeks:
-        #         founded_position: bool = False
-        #         for i in range(count_seeks - 1):
-        #             f.seek(i * portion)
-        #             if i > 0:
-        #                 f.readline()
-        #             for _ in range(1000):
-        #                 seek_position: int = f.tell()
-        #                 line: str = f.readline()
-        #                 match_new_line: Match[str] = RePatterns.re_new_event.match(line)
-        #                 if match_new_line:
-        #                     groups = match_new_line.groups()
-        #                     event_time = time_in_file + groups[0] + groups[1]
-
-        #                     filter_time_result = self.filter_time(event_time)
-        #                     if filter_time_result == -1:
-        #                         last_actual_seek_position = seek_position
-        #                     else:
-        #                         founded_position = True
-        #                     break
-        #             if founded_position:
-        #                 break
-        # return last_actual_seek_position
-
     def process_file(self, process_path: str, file_object: TechLogFile) -> None:
         p = Path(file_object.file_name)
         file_path: Path = p.absolute()
         time_in_file = file_path.stem
+        date_hour = time_in_file[:8]
         with open(file_object.file_name, 'r', encoding=self._encoding, errors='replace') as f:
             
             if self._tech_log_period.filter_time and not self.__filter_file(time_in_file):
@@ -160,7 +135,6 @@ class LogReaderBase(LogBase):
                     rphost: int = match_rphost.groups()[0]
             
             skip_file: bool = False
-            # previous_event_pos: int = f.tell()
             pos_before_read = f.tell()
             lines: List[str] = []
             raw_log_event = None
@@ -173,14 +147,12 @@ class LogReaderBase(LogBase):
                         break
                     match_new_line: Match[str] = RePatterns.re_new_event.match(file_line)
                     if match_new_line:
-                        next_event_begin_pos: int = pos_before_read
-                        # if self._tech_log_period.filter_time:
                         groups = match_new_line.groups()
-                        next_event_time_str = file_path.stem + groups[0] + groups[1] + groups[2]
-                        next_event_time = datetime.strptime(next_event_time_str, TimePatterns.template_time_full)
+                        next_event_time_str = f"{date_hour}{''.join(groups[:3])}"
+                        next_event_time = datetime.strptime(next_event_time_str, TimePatterns.format_time_full)
                         next_raw_log_event = RawLogProps(
                                             time=next_event_time,
-                                            file_path=file_path,
+                                            file=file_object,
                                             file_pos=pos_before_read,
                                             duration=int(groups[3]),
                                             name=groups[4],
