@@ -5,7 +5,8 @@ import re
 
 @dataclass
 class TechLogFile:
-    file_name: str
+    full_path: str
+    file_name: str = ''
     raw_position: int = -1
     rel_path: str = ''
     file_io: TextIOWrapper = None

@@ -1,8 +1,19 @@
-import re
 
-str_find = r"^(\d{2,12}):(\d{2})\.(\d{6})-(\d+),"
-pattern_start_record = re.compile(str_find, flags=re.MULTILINE)
-s = '01:22.555015-0,SYSTEM,2,process=rphost,p:processName=PPO_Store,t:clientID=3408,t:applicationName=WebServerExtension,t:computerName=1CWEB-1,t:connectID=22641,Usr=MobileZabbix,SessionID=506,level=TRACE,component=rserver,class=ClusterDistribService,line=964,file=src\\ClusterDistribImpl.cpp,threadId=2852,func=getCachedSeanceLocations,seanceID=567873c9-7950-4e6e-a7f3-61c7589c0615,urls=98ae204f-8139-458f-8bce-f1f7982bdbfe:tcp://onyx-1c-ppo2:1541\n01:22.555016-0,SYSTEM,2,process=rphost,p:processName=PPO_Store,t:clientID=3408,t:applicationName=WebServerExtension,t:computerName=1CWEB-1,t:connectID=22641,Usr=MobileZabbix,SessionID=506,level=TRACE,component=rserver,class=ClusterDistribService,line=1263,file=src\\ClusterDistribImpl.cpp,threadId=2852,func=getSeanceRMngrIDs,seanceID=567873c9-7950-4e6e-a7f3-61c7589c0615,urls=98ae204f-8139-458f-8bce-f1f7982bdbfe:tcp://onyx-1c-ppo2:1541\n01:22.555017-0,SYSTEM,2,process=rphost,p:processName=PPO_Store,t:clientID=3408,t:applicationName=WebServerExtension,t:computerName=1CWEB-1,t:connectID=22641,Usr=MobileZabbix,SessionID=506,level=TRACE,component=rserver,class=RMngrCalls,line=242,file=src\\RMngrCalls.cpp,threadId=2852,func=call,ev=before,riid=90b77326-8e4a-4195-b980-d758277d1f03,ib=PPO_Store,meth=1,ids=98ae204f-8139-458f-8bce-f1f7982bdbfe:tcp://onyx-1c-ppo2:1541,rethrow=false\n01:22.555019-1,SCALL,2,process=rphost,p:processName=PPO_Store,t:clientID=3408,t:applicationName=WebServerExtension,t:computerName=1CWEB-1,t:connectID=22641,Usr=MobileZabbix,SessionID=506,ClientID=3871,Interface=90b77326-8e4a-4195-b980-d758277d1f03,IName=ISeanceContextStorage,Method=1,CallID=3408159,MName=getSeanceParameterSer\n01:22.555020-0,SYSTEM,2,process=rphost,p:processName=PPO_Store,t:clientID=3408,t:applicationName=WebServerExtension,t:computerName=1CWEB-1,t:connectID=22641,Usr=MobileZabbix,SessionID=506,level=TRACE,component=rserver,class=ClusterDistribService,line=1377,file=src\\ClusterDistribImpl.cpp,threadId=2852,func=reportSuccessCall,event=register success c'
+class Class1:
+    def p(self):
+        print('p: class1')
 
-group = pattern_start_record.findall(s)
-pass
+    def s(self):
+        print('s: class1')
+class Class2:
+    def p(self):
+        print('p: class2')
+
+
+
+class Class3(Class2, Class1):
+
+    pass
+
+asdf = Class3()
+asdf.p()
