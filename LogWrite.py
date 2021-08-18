@@ -9,7 +9,7 @@ class LogWriteToConsole(LogBase):
 
     def add_data(self, process_path: str, log_event: TechLogEvent):
 
-        return f',process_path={process_path},filePath={log_event.event.file.file_name},filePos={log_event.event.file_pos}'
+        return f',tla:processPath={process_path},tla:fullPath={log_event.event.file.full_path},tla:filePos={log_event.event.file_pos}'
 
     def main_process(self, process_path: str, log_event: TechLogEvent):
         if log_event.text[-1] == '\n':
@@ -75,7 +75,7 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
             p = Path(full_path)
             if not p.parent.exists():
                 p.parent.mkdir()
-            file_io = open(full_path, 'w', encoding=self._encoding)
+            file_io = open(full_path, 'a', encoding=self._encoding)
             search_cache = TechLogFile(
                 full_path = full_path,
                 rel_path = log_event.event.file.rel_path,
@@ -84,4 +84,4 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
             )
             self._files_list.append(search_cache)
         self._current_io = search_cache
-        file_io.write(log_event.text.strip('\n')+self.add_data(process_path,log_event))
+        file_io.write(log_event.text.strip('\n')+self.add_data(process_path,log_event)+'\n')

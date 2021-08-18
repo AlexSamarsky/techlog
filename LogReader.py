@@ -1,11 +1,12 @@
 
 import os
 from pathlib import Path
-from typing import List, Match
+from typing import Any, List, Match
 import re
 from datetime import datetime
 from math import floor
 from colorama import Fore, Style
+import json
 
 from LogBase import LogBase
 from LogDataclasses import TechLogEvent, TechLogFile, RawLogProps, TimePatterns, RePatterns
@@ -26,9 +27,9 @@ class LogReaderBase(LogBase):
     def raw_data(self, raw_data) -> None:
         self._raw_data = raw_data
 
-    def __seek_files(self) -> List[TechLogFile]:
+    def seek_files(self) -> List[TechLogFile]:
         path_or_file: str = self._files_path
-        self._files_path: List[TechLogFile] = []
+        self._files_array: List[TechLogFile] = []
         
         try:
             if os.path.isdir(path_or_file):
@@ -40,14 +41,14 @@ class LogReaderBase(LogBase):
                             rel_path = os.path.join(*path_list)
                         else:
                             rel_path = ''
-                        self._files_path.append(TechLogFile(
+                        self._files_array.append(TechLogFile(
                                                     full_path=str(f),
                                                     rel_path=rel_path,
                                                     
                                                 ))
                         # self.__filter_file(str(f))
             elif os.path.isfile(path_or_file):
-                self._files_path.append(TechLogFile(full_path=path_or_file))
+                self._files_array.append(TechLogFile(full_path=path_or_file))
                 # self.__filter_file(path_or_file)
         except FileNotFoundError:
             pass
@@ -60,9 +61,9 @@ class LogReaderBase(LogBase):
         return True
     
     def main_process(self, process_path: str) -> None:
-        self.__seek_files()
-        if self._files_path:
-            for file_object in self._files_path:
+        self.seek_files()
+        if self._files_array:
+            for file_object in self._files_array:
                 self.process_file(process_path, file_object)
     
     def seek_position(self, file_name: str, start_seek: int = None) -> int:
@@ -146,12 +147,8 @@ class LogReaderBase(LogBase):
             file_line = ''
             cnt = 0
             while True:
-                cnt += 1
-                if cnt > 5:
-                    print(f'{Fore.YELLOW}{Style.BRIGHT}ONLY {cnt-1} RAWS WAS PROCESSED{Style.RESET_ALL}')
-                    break
                 for _ in range(1000):
-                    pos_before_read += len(file_line)
+                    pos_before_read += len(bytes(file_line, 'utf8'))
                     file_line = f.readline()
                     if not file_line:
                         break
@@ -193,10 +190,15 @@ class LogReaderBase(LogBase):
                     
                     
                     if event_line:
+                        cnt += 1
+                        if cnt > 5:
+                            print(f'{Fore.YELLOW}{Style.BRIGHT}ONLY {cnt-1} RAWS WAS PROCESSED{Style.RESET_ALL}')
+                            break
+                        event_len=len(bytes(event_line, 'utf8'))
                         tech_log_event = TechLogEvent(
                                             text=event_line,
                                             event=raw_log_event,
-                                            event_len=len(event_line)
+                                            event_len=event_len,
                                             )
                         self.execute_handlers(process_path, tech_log_event)
 
@@ -213,6 +215,27 @@ class LogReaderStream(LogReaderBase):
 
     def __init__(self, name: str, files_path: str, settings_path: str) -> None:
         super().__init__(name, files_path)
-
-    def __seek_files(self) -> List[TechLogFile]:
+        self._settings_path: str = settings_path
+    
+    def execute_begin(self) -> None:
+        with open(self._settings_path) as f:
+            self._settings: Any = json.load(f)
+        if not self._settings:
+            self._settings = {}
+        
+    def seek_files(self) -> List[TechLogFile]:
+        super().seek_files()
+        for file_object in self._files_array:
+            raw_position: int = self._settings.get(file_object.full_path)
+            if raw_position is None:
+                self._settings[file_object.full_path] = raw_position
+            else:
+                file_object.raw_position = raw_position
+        
+    def execute_end(self) -> None:
+        settings = {}
+        for file_object in self._files_array:
+            settings[file_object.full_path] = file_object.raw_position
+        with open(self._settings_path, 'w') as f:
+            json.dump(settings, f)
         pass

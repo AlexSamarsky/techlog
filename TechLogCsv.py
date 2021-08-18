@@ -9,7 +9,7 @@ profile = False
 
 class TechLogCsv(TechLogFile):
     
-    _pattern_all_props = re.compile(r',([^,=\s]+)=([^,\'\"]+|\'[^\']+\'|\"[^\"]+\")', flags=re.ASCII | re.IGNORECASE)
+    _pattern_all_props = re.compile(r',([^,=\s]+)=([^,\'\"]+|\'[^\']+\'|\"[^\"]+\")', flags=re.ASCII)
     _pattern_four_props = re.compile(r'([^,]+)-([^,]+),([^,]+),([^,]+)', flags=re.ASCII)
     _array_fields = ['_time', '_duration', '_event', '_level']
     _file_field_filter_name = ''
