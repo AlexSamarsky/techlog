@@ -4,7 +4,7 @@ from LogWrite import LogWriteToCatalogByMinute, LogWriteToConsole, LogWriteToFil
 from LogFilter import LogFilterPattern
 from LogReader import LogReaderBase, LogReaderStream
 
-profile = False
+profile = True
 
 def main():
 

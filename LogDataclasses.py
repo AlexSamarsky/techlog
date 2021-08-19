@@ -71,7 +71,7 @@ class TechLogPeriod:
     
 class RePatterns:
     re_rphost = re.compile(r'rphost_([\d]+)')
-    re_new_event = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),")
+    re_new_event = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),", flags=re.MULTILINE)
 
 class TimePatterns:
     format_time: str = "%y%m%d%H%M%S"

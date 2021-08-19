@@ -77,7 +77,7 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
             p = Path(full_path)
             if not p.parent.exists():
                 p.parent.mkdir()
-            file_io = open(full_path, 'w', encoding=self._encoding)
+            file_io = open(full_path, 'a', encoding=self._encoding)
             search_cache = TechLogFile(
                 full_path = full_path,
                 rel_path = log_event.event.file.rel_path,
