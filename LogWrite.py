@@ -65,7 +65,9 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
             if self._current_io.stem == stem and self._current_io.rel_path == log_event.event.file.rel_path:
                 search_cache = self._current_io
         if not search_cache:
-            search_cache = list(filter(lambda x: x.stem == stem and x.rel_path == log_event.event.file.rel_path, self._files_list))
+            search_cache_list = list(filter(lambda x: x.stem == stem and x.rel_path == log_event.event.file.rel_path, self._files_list))
+            if search_cache_list:
+                search_cache = search_cache_list[0]
         if search_cache:
             file_io = search_cache.file_io
         else:
@@ -75,7 +77,7 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
             p = Path(full_path)
             if not p.parent.exists():
                 p.parent.mkdir()
-            file_io = open(full_path, 'a', encoding=self._encoding)
+            file_io = open(full_path, 'w', encoding=self._encoding)
             search_cache = TechLogFile(
                 full_path = full_path,
                 rel_path = log_event.event.file.rel_path,

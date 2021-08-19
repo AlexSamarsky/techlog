@@ -1,7 +1,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, List, Match
+from typing import Any, Generator, List, Match
 import re
 from datetime import datetime
 from math import floor
@@ -64,7 +64,12 @@ class LogReaderBase(LogBase):
         self.seek_files()
         if self._files_array:
             for file_object in self._files_array:
-                self.process_file(process_path, file_object)
+                try:
+                    for tech_log_event in self.process_file(process_path, file_object):
+                        self.execute_handlers(process_path, tech_log_event)
+                except FileNotFoundError:
+                    pass
+
     
     def seek_position(self, file_name: str, start_seek: int = None) -> int:
 
@@ -172,7 +177,7 @@ class LogReaderBase(LogBase):
                             lines.append(file_line)
                             raw_log_event = next_raw_log_event
                             # event_time_str = next_event_time_str
-                    else:
+                    elif next_raw_log_event:
                         lines.append(file_line)
                 if lines:
                     event_time = raw_log_event.time
@@ -190,19 +195,19 @@ class LogReaderBase(LogBase):
                     
                     
                     if event_line:
-                        cnt += 1
-                        if cnt > 5:
-                            print(f'{Fore.YELLOW}{Style.BRIGHT}ONLY {cnt-1} RAWS WAS PROCESSED{Style.RESET_ALL}')
-                            break
+                        # cnt += 1
+                        # if cnt > 5:
+                        #     print(f'{Fore.YELLOW}{Style.BRIGHT}ONLY {cnt-1} RAWS WAS PROCESSED{Style.RESET_ALL}')
+                        #     break
                         event_len=len(bytes(event_line, 'utf8'))
                         tech_log_event = TechLogEvent(
                                             text=event_line,
                                             event=raw_log_event,
                                             event_len=event_len,
                                             )
-                        self.execute_handlers(process_path, tech_log_event)
-
                         file_object.raw_position = tech_log_event.event.file_pos + tech_log_event.event_len
+                        yield tech_log_event
+
                     raw_log_event = next_raw_log_event
                         # previous_event_pos = next_event_begin_pos
                 if not file_line or skip_file:
@@ -222,6 +227,7 @@ class LogReaderStream(LogReaderBase):
             self._settings: Any = json.load(f)
         if not self._settings:
             self._settings = {}
+        # self._settings = {}
         
     def seek_files(self) -> List[TechLogFile]:
         super().seek_files()
@@ -239,3 +245,16 @@ class LogReaderStream(LogReaderBase):
         with open(self._settings_path, 'w') as f:
             json.dump(settings, f)
         pass
+
+    def init_stream(self, start_time: datetime) -> None:
+        self.set_time(start_time=start_time, end_time=None)
+        self._settings = {}
+        self.seek_files()
+        process_path = 'init'
+        if self._files_array:
+            for file_object in self._files_array:
+                file_object.raw_position = 0
+                tech_log_event = next(self.process_file(process_path, file_object), None)
+                if tech_log_event == None:
+                    file_object.raw_position = Path(file_object.full_path).stat().st_size
+        self.execute_end()
