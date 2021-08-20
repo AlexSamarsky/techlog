@@ -11,16 +11,18 @@ class TechLogFile:
     rel_path: str = ''
     file_io: TextIOWrapper = None
     stem: str = ''
+    init_path: str = ''
 
 
 @dataclass(frozen=True)
 class RawLogProps:
-    time: datetime
     file: TechLogFile
     file_pos: int
     duration: int
     name: str
     level: int
+    time_str: str = ''
+    time: datetime = None
 
 @dataclass(frozen=True)
 class LogEvent:

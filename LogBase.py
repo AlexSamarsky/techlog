@@ -4,6 +4,7 @@ from typing import List, Match
 import re
 from datetime import datetime
 from math import floor
+from Timer import Timer
 
 from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TimePatterns, RePatterns
 
@@ -60,11 +61,15 @@ class LogBase():
         self._handlers_len = len(self._handlers)
     
     def main(self):
+        timer = Timer('test')
+        timer.start()
         # self.execute_begin()
         self.execute_begin_handlers()
         self.main_process(self.name)
         # self.execute_end()
         self.execute_end_handlers()
+        timer.stop()
+        print(timer)
 
     def main_process(self, process_path: str) -> None:
         self.execute_handlers(process_path, None)

@@ -18,8 +18,9 @@ class LogReaderBase(LogBase):
         self._files_path: str = files_path
         self._files_array: List[TechLogFile] = []
         self._raw_data: bool = True
-        self._new_file_process = False
-        
+        self._new_file_process = True
+        self._cnt_on = False
+
     @property
     def raw_data(self) -> bool:
         return self._raw_data
@@ -45,6 +46,7 @@ class LogReaderBase(LogBase):
                         self._files_array.append(TechLogFile(
                                                     full_path=str(f),
                                                     rel_path=rel_path,
+                                                    init_path=path_or_file
                                                     
                                                 ))
                         # self.__filter_file(str(f))
@@ -164,11 +166,11 @@ class LogReaderBase(LogBase):
                                     pos_before_read += len(bytes(text[:match.start()], 'utf8'))
                                 continue
                             cnt += 1
-                            if cnt > 500:
+                            if self._cnt_on and cnt > 500:
                                 print(f'{Fore.YELLOW}{Style.BRIGHT}ONLY {cnt-1} RAWS WAS PROCESSED{Style.RESET_ALL}')
                                 skip_file = True
                                 break
-                            groups = match.groups()
+                            groups = prev_match.groups()
                             event_time_str = f"{date_hour[:8]}{''.join(groups[:3])}"
                             event_time = datetime.strptime(event_time_str, TimePatterns.format_time_full)
                             if self._tech_log_period.filter_time:
@@ -192,7 +194,8 @@ class LogReaderBase(LogBase):
                                                     file_pos=pos_before_read,
                                                     duration=int(groups[3]),
                                                     name=groups[4],
-                                                    level=groups[5]
+                                                    level=groups[5],
+                                                    time_str=event_time_str
                                                     )
                                 tech_log_event = TechLogEvent(
                                                     text=event_line,
@@ -215,7 +218,7 @@ class LogReaderBase(LogBase):
                             groups = match.groups()
                             event_time_str = f"{date_hour[:8]}{''.join(groups[:3])}"
                             event_time = datetime.strptime(event_time_str, TimePatterns.format_time_full)
-                            if timedelta(event_time, datetime.now()).seconds > 1:
+                            if (datetime.now() - event_time).total_seconds() > 1:
                                 if self._tech_log_period.filter_time:
                                     if self.filter_time(event_time) == 0:
                                         event_line = text
@@ -230,7 +233,8 @@ class LogReaderBase(LogBase):
                                                         file_pos=pos_before_read,
                                                         duration=int(groups[3]),
                                                         name=groups[4],
-                                                        level=groups[5]
+                                                        level=groups[5],
+                                                        time_str=event_time_str
                                                         )
                                     tech_log_event = TechLogEvent(
                                                         text=event_line,
@@ -266,7 +270,8 @@ class LogReaderBase(LogBase):
                                                 file_pos=pos_before_read,
                                                 duration=int(groups[3]),
                                                 name=groups[4],
-                                                level=groups[5]
+                                                level=groups[5],
+                                                time_str=next_event_time_str
                                                 )
                             
                             if lines:
@@ -294,7 +299,7 @@ class LogReaderBase(LogBase):
                         
                         if event_line:
                             cnt += 1
-                            if cnt > 500:
+                            if self._cnt_on and cnt > 500:
                                 skip_file = True
                                 print(f'{Fore.YELLOW}{Style.BRIGHT}ONLY {cnt-1} RAWS WAS PROCESSED{Style.RESET_ALL}')
                                 break
@@ -320,7 +325,16 @@ class LogReaderStream(LogReaderBase):
     def __init__(self, name: str, files_path: str, settings_path: str) -> None:
         super().__init__(name, files_path)
         self._settings_path: str = settings_path
+        self._cache_len_minute = 5
     
+    @property
+    def cache_len_minute(self) -> int:
+        return self._cache_len_minute
+
+    @cache_len_minute.setter
+    def cache_len_minute(self, minute: int) -> None:
+        self._cache_len_minute = minute
+
     def execute_begin(self) -> None:
         with open(self._settings_path) as f:
             self._settings: Any = json.load(f)
@@ -331,11 +345,15 @@ class LogReaderStream(LogReaderBase):
     def seek_files(self) -> List[TechLogFile]:
         super().seek_files()
         for file_object in self._files_array:
+            if self._cache_len_minute:
+                file_object.stem[:8]
+                pass
             raw_position: int = self._settings.get(file_object.full_path)
             if raw_position is None:
                 self._settings[file_object.full_path] = raw_position
             else:
                 file_object.raw_position = raw_position
+        self._files_array = []
         
     def execute_end(self) -> None:
         settings = {}

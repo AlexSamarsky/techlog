@@ -1,5 +1,6 @@
 
 import os
+import re
 from typing import List
 from LogBase import LogBase
 from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TimePatterns, RePatterns
@@ -87,3 +88,50 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
             self._files_list.append(search_cache)
         self._current_io = search_cache
         file_io.write(log_event.text.strip('\n')+self.add_data(process_path,log_event)+'\n')
+
+
+class LogWriteToCatalogByField(LogWriteToCatalogByMinute):
+    pass
+
+    def __init__(self, name: str, file_name: str, field_name: str) -> None:
+        super().__init__(name, file_name)
+        # search_pattern = f''
+        self._pattern_field = re.compile(r'\b{field_name}=(\d+)'.format(field_name=field_name))
+
+    def main_process(self, process_path: str, log_event: TechLogEvent) -> None:
+
+        field_search = self._pattern_field.search(log_event.text)
+        if not field_search:
+            return ''
+        # field_value = field_search.groups()[0]
+        stem = field_search.groups()[0]
+        time_hour = log_event.event.time_str[:8]
+
+        search_cache = None
+        if self._current_io:
+            if self._current_io.stem == stem:
+                search_cache = self._current_io
+        if not search_cache:
+            search_cache_list = list(filter(lambda x: x.stem == stem, self._files_list))
+            if search_cache_list:
+                search_cache = search_cache_list[0]
+        if search_cache:
+            file_io = search_cache.file_io
+        else:
+            file_name = f'{stem}.log'
+            full_path = os.path.join(self._path_file_name, file_name)
+            # full_path = os.path.join(log_event.event.file.init_path, file_name)
+            full_path = full_path.replace('/', os.sep)
+            p = Path(full_path)
+            if not p.parent.exists():
+                p.parent.mkdir()
+            file_io = open(full_path, 'a', encoding=self._encoding)
+            search_cache = TechLogFile(
+                full_path = full_path,
+                rel_path = log_event.event.file.rel_path,
+                stem = stem,
+                file_io = file_io,
+            )
+            self._files_list.append(search_cache)
+        self._current_io = search_cache
+        file_io.write(time_hour+log_event.text.strip('\n').replace('\n', '\\n')+self.add_data(process_path,log_event)+'\n')
