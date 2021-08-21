@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from math import floor
 from colorama import Fore, Style
 import json
+import numpy as np
 
 from LogBase import LogBase
 from LogDataclasses import TechLogEvent, TechLogFile, RawLogProps, TimePatterns, RePatterns
@@ -18,7 +19,7 @@ class LogReaderBase(LogBase):
         self._files_path: str = files_path
         self._files_array: List[TechLogFile] = []
         self._raw_data: bool = True
-        self._new_file_process = True
+        self._file_process_alg = 'block'
         self._cnt_on = False
 
     @property
@@ -72,7 +73,6 @@ class LogReaderBase(LogBase):
                         self.execute_handlers(process_path, tech_log_event)
                 except FileNotFoundError:
                     pass
-
     
     def seek_position(self, file_name: str, start_seek: int = None) -> int:
 
@@ -125,6 +125,10 @@ class LogReaderBase(LogBase):
                         break
         return last_actual_seek_position
 
+    def event_process(self, process_path: str, file_object: TechLogFile, len_arr: int, index: int, event_string: str) -> None:
+        if index > 0 and index < len_arr - 1:
+            print(event_string)
+    
     def process_file(self, process_path: str, file_object: TechLogFile) -> None:
         p = Path(file_object.full_path)
         file_path: Path = p.absolute()
@@ -147,13 +151,34 @@ class LogReaderBase(LogBase):
                 if match_rphost:
                     rphost: int = match_rphost.groups()[0]
             
-            if self._new_file_process:
+            if self._file_process_alg == 'numpy':
+                skip_file = False
+                size_read = 1_000
+                text = ''
+                pos_before_read = f.tell()
+                cnt_reads = floor(p.stat().st_size / size_read) + 2
+                cnt = 0
+                vec_event_process = np.vectorize(self.event_process)
+                for _ in range(cnt_reads):
+                    read_text = f.read(size_read)
+                    if read_text:
+                        text += read_text
+                        # read_text = RePatterns.re_new_event_sub.sub('<tlaline>\g<0>', read_text)
+                        # arr = np.char.split(read_text, sep='<tlaline>').reshape(1)[0]
+                        arr = RePatterns.re_new_event_findall.findall(text)
+                        arr.insert(0, '')
+                        indexes = np.r_[0:len(arr):1]
+                        vec_event_process(process_path, file_object, len(arr), indexes, arr)
+                        break
+                pass
+            elif self._file_process_alg == 'block':
                 skip_file = False
                 size_read = 1_000_000
                 text = ''
                 pos_before_read = f.tell()
+                cnt_reads = floor(p.stat().st_size / size_read) + 2
                 cnt = 0
-                while True:
+                for _ in range(cnt_reads):
                     read_text = f.read(size_read)
                     # len_text = len(bytes(read_text, 'utf8'))
                     if read_text:

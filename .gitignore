@@ -9,3 +9,4 @@ long_queries/*
 logs_full/*
 WEB/*
 old_tests/*
+.DS_Store

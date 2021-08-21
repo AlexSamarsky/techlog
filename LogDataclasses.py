@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from io import TextIOWrapper
 import re
+from typing import Iterator, Match
 
 @dataclass
 class TechLogFile:
@@ -12,7 +13,9 @@ class TechLogFile:
     file_io: TextIOWrapper = None
     stem: str = ''
     init_path: str = ''
-
+    skip_file: bool = False
+    date_hour_str: str = ''
+    date_hour: datetime = None
 
 @dataclass(frozen=True)
 class RawLogProps:
@@ -74,9 +77,27 @@ class TechLogPeriod:
 class RePatterns:
     re_rphost = re.compile(r'rphost_([\d]+)')
     re_new_event = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),", flags=re.MULTILINE)
+    re_new_event_sub = re.compile(r"^(\d{2,12}:\d{2}\.\d{6}-\d+,\w+,\d+,)", flags=re.MULTILINE)
+    re_new_event_findall = re.compile(r"((\d{2,10}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2}:\d{2}.)|\Z))", flags=re.MULTILINE | re.S)
+
+    # re_new_event_findall = re.compile(r"(.+?(?:^(?=\d{2}:\d{2}.)|\Z))", flags=re.MULTILINE | re.S)
+    re_new_event_line = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),")
+
 
 class TimePatterns:
     format_time: str = "%y%m%d%H%M%S"
     format_time_full: str = "%y%m%d%H%M%S%f"
     format_date_hour: str = "%y%m%d%H"
     format_time_minute: str = "%y%m%d%H%M"
+
+@dataclass
+class EventsProcessObject:
+    skip_group: bool = False
+    process_path: str = ''
+    len_arr: int = 0
+    text: str = ''
+    event_iter: Iterator[Match] = None
+    current_pos: int = 0
+    event_count: int = 0
+    event_previous: TechLogEvent = None
+
