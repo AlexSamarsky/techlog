@@ -85,6 +85,8 @@ class LogReaderBaseVector(LogBase):
             file_size: int = p.stat().st_size
             last_actual_seek_position: int = 0
             portion: int = file_size
+            date_hour_str = time_in_file[:8]
+            date_hour = datetime.strptime(time_in_file[:8], TimePatterns.format_date_hour)
             if not start_seek:
                 start_seek: int = last_actual_seek_position
                 
@@ -97,31 +99,58 @@ class LogReaderBaseVector(LogBase):
             
                 count_seeks: int = floor(file_size / portion)
                 if count_seeks:
-                    founded_position = False
-                    for i in range(count_seeks - 1):
+                    # founded_position = False
+                    for i in range(1, count_seeks - 1):
                         current_seek = start_seek + i * portion
                         f.seek(current_seek)
-                        if current_seek > 0:
-                            f.readline()
-                        for _ in range(1000):
-                            seek_position = f.tell()
-                            line: str = f.readline()
-                            if not line:
-                                founded_position = True
-                                break
-                            match_new_line: Match[str] = RePatterns.re_new_event.match(line)
-                            if match_new_line:
-                                groups = match_new_line.groups()
-                                event_time = time_in_file + groups[0] + groups[1]
+                        text = f.read(10_000)
+                        search_event = RePatterns.re_new_event.search(text)
+                        if not search_event:
+                            raise ValueError('event not found')
+                        
+                        minutes = search_event.group(1)
+                        seconds = search_event.group(2)
+                        microseconds = search_event.group(3)
+                        time_delta = timedelta(
+                                        minutes=int(minutes),
+                                        seconds=int(seconds),
+                                        microseconds=int(microseconds)
+                                    )
+                        # event_time_str = f"{date_hour_str}{minutes}{seconds}{microseconds}"
+                        event_time = date_hour + time_delta
 
-                                filter_time_result = self.filter_time(event_time)
-                                if filter_time_result == -1:
-                                    last_actual_seek_position = seek_position
-                                else:
-                                    founded_position = True
-                                break
-                        if founded_position:
+                        filter_time_result = self.filter_time(event_time)
+                        if filter_time_result == -1:
+                            text_before = text[:search_event.start()]
+                            len_text_before = len(bytes(text_before, 'utf8'))
+                            
+                            last_actual_seek_position = current_seek + len_text_before
+                        else:
                             break
+                    # if founded_position:
+                    #     break
+                        
+                        # if current_seek > 0:
+                        #     f.readline()
+                        # for _ in range(1000):
+                        #     seek_position = f.tell()
+                        #     line: str = f.readline()
+                        #     if not line:
+                        #         founded_position = True
+                        #         break
+                        #     match_new_line: Match[str] = RePatterns.re_new_event.match(line)
+                        #     if match_new_line:
+                        #         groups = match_new_line.groups()
+                        #         event_time = time_in_file + groups[0] + groups[1]
+
+                        #         filter_time_result = self.filter_time(event_time)
+                        #         if filter_time_result == -1:
+                        #             last_actual_seek_position = seek_position
+                        #         else:
+                        #             founded_position = True
+                        #         break
+                        # if founded_position:
+                        #     break
                     if not current_seek:
                         break
         return last_actual_seek_position
@@ -175,9 +204,6 @@ class LogReaderBaseVector(LogBase):
         self.execute_handlers(process_path, tech_log_event)
         # print(TechLogEvent)
     
-    def get_group(self, text, match_group, index):
-        return text[match_group.regs[index][0]:match_group.regs[index][1]]
-    
     def event_process2(self, event_process_object: EventsProcessObject, file_object, index) -> None:
         if event_process_object.skip_group:
             return
@@ -186,23 +212,13 @@ class LogReaderBaseVector(LogBase):
             next_match = RePatterns.re_new_event_findall_last.match(event_process_object.text, pos=event_process_object.current_pos)
         else:
             next_match = RePatterns.re_new_event_findall.match(event_process_object.text, pos=event_process_object.current_pos)
-        # next_match = next(event_process_object.event_iter, None)
-        # if next_match is None:
-        #     event_process_object.skip_group = True
-        #     return
-        # if event_process_object.event_count >= 204:
-        #     cnt = 1
-        #     pass
         
         if not next_match:
-            # print(f'event_process_object.event_count: {event_process_object.event_count}')
             event_process_object.skip_group = True
             return
         event_process_object.current_pos = next_match.regs[0][1]
-        # event_process_object.current_pos = next_match.end()
         event_process_object.event_count += 1
 
-        # event_array = next_match.groups()
         minutes = next_match.group(1)
         seconds = next_match.group(2)
         microseconds = next_match.group(3)
@@ -211,7 +227,6 @@ class LogReaderBaseVector(LogBase):
                         seconds=int(seconds),
                         microseconds=int(microseconds)
                     )
-        # # event_string = event_array[0]
         event_time_str = f"{file_object.date_hour_str}{minutes}{seconds}{microseconds}"
         event_time = file_object.date_hour + time_delta
         if self._tech_log_period.filter_time:
@@ -226,44 +241,33 @@ class LogReaderBaseVector(LogBase):
                 return
         else:
             event_line = next_match.group(0)
-        # event_line = self.get_group(event_process_object.text, next_match, 0)
-        # event_line = event_process_object.text[next_match.regs[0][0]:next_match.regs[0][1]]
-        # event_line = event_array[0]
         event_len = len(bytes(event_line, 'utf8'))
-        # event_len = 0
-        raw_log_event = RawLogProps(
-                            time=event_time,
-                            file=file_object,
-                            file_pos=file_object.raw_position,
-                            duration=int(next_match.group(4)),
-                            name=next_match.group(5),
-                            level=next_match.group(6),
-                            time_str=event_time_str
-                            )
-        tech_log_event = TechLogEvent(
-                            text=event_line,
-                            event=raw_log_event,
-                            event_len=event_len,
-                            )
-        file_object.raw_position = tech_log_event.event.file_pos + tech_log_event.event_len
-        # self.execute_handlers(process_path, tech_log_event)
-        self.execute_handlers(event_process_object.process_path, tech_log_event)
+        event_process_object.tech_log_event.event.file_pos = file_object.raw_position
+        event_process_object.tech_log_event.event.duration = int(next_match.group(4))
+        event_process_object.tech_log_event.event.name = next_match.group(5)
+        event_process_object.tech_log_event.event.level = next_match.group(6)
+        event_process_object.tech_log_event.event.time_str = event_time_str
+        event_process_object.tech_log_event.text = event_line
+        event_process_object.tech_log_event.event_len = event_len
 
-        # if index == -1:
-        #     event_process_object.event_previous = tech_log_event
-        
-        # if not event_process_object.event_previous:
-        #     event_process_object.event_previous = tech_log_event
-        #     return
-        
+        # raw_log_event = RawLogProps(
+        #                     time=event_time,
+        #                     file=file_object,
+        #                     file_pos=file_object.raw_position,
+        #                     duration=int(next_match.group(4)),
+        #                     name=next_match.group(5),
+        #                     level=next_match.group(6),
+        #                     time_str=event_time_str
+        #                     )
+        # tech_log_event = TechLogEvent(
+        #                     text=event_line,
+        #                     event=raw_log_event,
+        #                     event_len=event_len,
+        #                     )
 
-        
-        # print(event_process_object.event_previous)
-        
-        
-        # event_process_object.event_previous = tech_log_event
-        pass
-    
+        file_object.raw_position = event_process_object.tech_log_event.event.file_pos + event_process_object.tech_log_event.event_len
+        self.execute_handlers(event_process_object.process_path, event_process_object.tech_log_event)
+
     def process_file(self, process_path: str, file_object: TechLogFile) -> None:
         p = Path(file_object.full_path)
         file_path: Path = p.absolute()
@@ -292,29 +296,38 @@ class LogReaderBaseVector(LogBase):
             file_object.date_hour_str = date_hour[:8]
             file_object.date_hour = datetime.strptime(date_hour[:8], TimePatterns.format_date_hour)
             size_read = 1_000_000
-            text = ''
+            event_process_object.text = ''
             
             file_object.raw_position = f.tell()
             cnt_reads = floor(p.stat().st_size / size_read) + 2
             vec_event_process = np.vectorize(self.event_process)
             vec_event_process2 = np.vectorize(self.event_process2)
             
-            arr100 = np.r_[0:600:1]
+            raw_log_event = RawLogProps(
+                                time=datetime.now(),
+                                file=file_object,
+                                file_pos=0,
+                                duration=0,
+                                name='',
+                                level='',
+                                time_str=''
+                                )
+            tech_log_event = TechLogEvent(
+                                text='',
+                                event=raw_log_event,
+                                event_len=0,
+                                )
+
+            event_process_object.tech_log_event = tech_log_event
+
+            arr100 = np.r_[0:1200:1]
             
             for _ in range(cnt_reads):
                 read_text = f.read(size_read)
                 if read_text:
-                    text += read_text
-                # else:
-                #     pass
-                #     # read_text = RePatterns.re_new_event_sub.sub('<tlaline>\g<0>', read_text)
-                #     # arr = np.char.split(read_text, sep='<tlaline>').reshape(1)[0]
-                # events_iter = RePatterns.re_new_event_findall.finditer(text)
-                # # eventc_count = RePatterns.re_new_event_findall.fullmatch
-                # # arr = list(events_iter)
-                # event_process_object.event_iter = events_iter
+                    event_process_object.text += read_text
                 event_process_object.len_arr = len(arr100)
-                event_process_object.text = text
+                # event_process_object.text = text
                 event_process_object.event_count = 0
                 event_process_object.skip_group = False
                 event_process_object.current_pos = 0
@@ -323,14 +336,20 @@ class LogReaderBaseVector(LogBase):
                 
                 if not event_process_object.skip_group:
                     vec_event_process2(event_process_object, file_object, arr100)
-                # print(f'event_process_object.event_count: {event_process_object.event_count}')
+
+                if not event_process_object.skip_group:
+                    while not event_process_object.skip_group:
+                        vec_event_process2(event_process_object, file_object, arr100)
                 
                 if not event_process_object.skip_group:
                     raise ValueError('not all processed')
                 
+                if file_object.skip_file:
+                    break
+                
                 if event_process_object.event_count == 1:
                     arr100 = np.array([-1], dtype=np.int)
-                text = text[event_process_object.current_pos:]
+                event_process_object.text = event_process_object.text[event_process_object.current_pos:]
                 
 
 

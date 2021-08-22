@@ -8,16 +8,29 @@ from pathlib import Path
 
 class LogWriteToConsole(LogBase):
 
-    def add_data(self, process_path: str, log_event: TechLogEvent):
+    def __init__(self, name: str):
+        super().__init__(name)
+        self._add_data = True
 
-        return f',tla:processPath={process_path},tla:fullPath={log_event.event.file.full_path},tla:filePos={log_event.event.file_pos}'
+    @property
+    def add_data(self):
+        return self._add_data
+    
+    @add_data.setter
+    def add_data(self, data):
+        self._add_data = data
+    
+    def generate_data(self, process_path: str, log_event: TechLogEvent):
+        if self._add_data:
+            return f',tla:processPath={process_path},tla:fullPath={log_event.event.file.full_path},tla:filePos={log_event.event.file_pos}'
+        return ''
 
     def main_process(self, process_path: str, log_event: TechLogEvent):
         if log_event.text[-1] == '\n':
-            print(log_event.event.time.strftime(TimePatterns.format_date_hour)+log_event.text.strip('\n')+self.add_data(process_path,log_event))
+            print(log_event.event.time.strftime(TimePatterns.format_date_hour)+log_event.text.strip('\n')+self.generate_data(process_path,log_event))
         else:
-            print(log_event.event.time.strftime(TimePatterns.format_date_hour)+log_event.text+self.add_data(process_path,log_event))
-
+            print(log_event.event.time.strftime(TimePatterns.format_date_hour)+log_event.text+self.generate_data(process_path,log_event))
+        
 
 class LogWriteToFile(LogWriteToConsole):
 
@@ -35,7 +48,7 @@ class LogWriteToFile(LogWriteToConsole):
         self._writer.close()
 
     def main_process(self, process_path: str, log_event: TechLogEvent):
-        self._writer.write(log_event.event.time.strftime(TimePatterns.format_date_hour)+log_event.text.strip('\n')+self.add_data(process_path,log_event)+'\n')
+        self._writer.write(log_event.event.time_str[:8]+log_event.text.strip('\n')+self.generate_data(process_path,log_event)+'\n')
 
 class LogWriteToCatalogByMinute(LogWriteToConsole):
     
@@ -60,7 +73,7 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
                     f.file_io.close()
     
     def main_process(self, process_path: str, log_event: TechLogEvent) -> None:
-        stem = log_event.event.time.strftime(TimePatterns.format_time_minute)
+        stem = log_event.event.time_str[:10]
         search_cache = None
         if self._current_io:
             if self._current_io.stem == stem and self._current_io.rel_path == log_event.event.file.rel_path:
@@ -87,7 +100,7 @@ class LogWriteToCatalogByMinute(LogWriteToConsole):
             )
             self._files_list.append(search_cache)
         self._current_io = search_cache
-        file_io.write(log_event.text.strip('\n')+self.add_data(process_path,log_event)+'\n')
+        file_io.write(log_event.text.strip('\n')+self.generate_data(process_path,log_event)+'\n')
 
 
 class LogWriteToCatalogByField(LogWriteToCatalogByMinute):
@@ -134,4 +147,4 @@ class LogWriteToCatalogByField(LogWriteToCatalogByMinute):
             )
             self._files_list.append(search_cache)
         self._current_io = search_cache
-        file_io.write(time_hour+log_event.text.strip('\n').replace('\n', '\\n')+self.add_data(process_path,log_event)+'\n')
+        file_io.write(time_hour+log_event.text.strip('\n').replace('\n', '\\n')+self.generate_data(process_path,log_event)+'\n')

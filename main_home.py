@@ -13,7 +13,7 @@ def main():
     # log_reader = LogReaderStream('test', 'logs', 'settings.json')
     # \\onyx-1c-ppo2\Logz\PPO_Store_FULL
     # f.raw_data = False
-    # log_reader.set_time(datetime(2021, 4, 26, 10, 14, 0, 0), datetime(2021, 4, 26, 10, 20,  0, 0))
+    log_reader.set_time(datetime(2021, 4, 26, 10, 14, 0, 0), datetime(2021, 4, 26, 10, 20,  0, 0))
 
     # log_writer_file = LogWriteToCatalogByMinute('write_file', 'logs_test/home')
     # log_writer_console = LogWriteToConsole('console')

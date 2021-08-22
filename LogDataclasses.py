@@ -17,7 +17,7 @@ class TechLogFile:
     date_hour_str: str = ''
     date_hour: datetime = None
 
-@dataclass(frozen=True)
+@dataclass()
 class RawLogProps:
     file: TechLogFile
     file_pos: int
@@ -27,13 +27,13 @@ class RawLogProps:
     time_str: str = ''
     time: datetime = None
 
-@dataclass(frozen=True)
+@dataclass()
 class LogEvent:
     text: str
     event_len: int
     event: RawLogProps
    
-@dataclass(frozen=True)
+@dataclass()
 class TechLogEvent(LogEvent):
     rphost: int = 0
  
@@ -106,4 +106,4 @@ class EventsProcessObject:
     current_pos: int = 0
     event_count: int = 0
     event_previous: TechLogEvent = None
-
+    tech_log_event: TechLogEvent = None
