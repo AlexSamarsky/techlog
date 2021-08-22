@@ -5,11 +5,11 @@ from LogWrite import LogWriteToCatalogByMinute, LogWriteToConsole, LogWriteToFil
 from LogFilter import LogFilterPattern
 from LogReader import LogReaderBase, LogReaderStream
 
-profile = False
+profile = True
 
 def main():
 
-    log_reader = LogReaderBaseVector('reader', 'logs/logs_small')
+    log_reader = LogReaderBaseVector('reader', 'logs/logs_big')
     # log_reader = LogReaderStream('test', 'logs', 'settings.json')
     # \\onyx-1c-ppo2\Logz\PPO_Store_FULL
     # f.raw_data = False

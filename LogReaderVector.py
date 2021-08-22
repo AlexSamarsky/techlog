@@ -175,46 +175,69 @@ class LogReaderBaseVector(LogBase):
         self.execute_handlers(process_path, tech_log_event)
         # print(TechLogEvent)
     
+    def get_group(self, text, match_group, index):
+        return text[match_group.regs[index][0]:match_group.regs[index][1]]
+    
     def event_process2(self, event_process_object: EventsProcessObject, file_object, index) -> None:
         if event_process_object.skip_group:
             return
-        next_match = next(event_process_object.event_iter, None)
-        if next_match is None:
+        
+        if event_process_object.len_arr == 1:
+            next_match = RePatterns.re_new_event_findall_last.match(event_process_object.text, pos=event_process_object.current_pos)
+        else:
+            next_match = RePatterns.re_new_event_findall.match(event_process_object.text, pos=event_process_object.current_pos)
+        # next_match = next(event_process_object.event_iter, None)
+        # if next_match is None:
+        #     event_process_object.skip_group = True
+        #     return
+        # if event_process_object.event_count >= 204:
+        #     cnt = 1
+        #     pass
+        
+        if not next_match:
+            # print(f'event_process_object.event_count: {event_process_object.event_count}')
             event_process_object.skip_group = True
             return
-        event_array = next_match.groups()
+        event_process_object.current_pos = next_match.regs[0][1]
+        # event_process_object.current_pos = next_match.end()
+        event_process_object.event_count += 1
 
-
+        # event_array = next_match.groups()
+        minutes = next_match.group(1)
+        seconds = next_match.group(2)
+        microseconds = next_match.group(3)
         time_delta = timedelta(
-                        minutes=int(event_array[1]),
-                        seconds=int(event_array[2]),
-                        microseconds=int(event_array[3])
+                        minutes=int(minutes),
+                        seconds=int(seconds),
+                        microseconds=int(microseconds)
                     )
-        # event_string = event_array[0]
-        event_time_str = f"{file_object.date_hour_str}{''.join(event_array[1:4])}"
+        # # event_string = event_array[0]
+        event_time_str = f"{file_object.date_hour_str}{minutes}{seconds}{microseconds}"
         event_time = file_object.date_hour + time_delta
         if self._tech_log_period.filter_time:
             filter_time_result = self.filter_time(event_time)
             if filter_time_result == -1:
-                event_line = ''
+                return
             elif filter_time_result == 0: 
-                event_line = event_array[0]
+                event_line = next_match.group(0)
             elif filter_time_result == 1:
                 file_object.skip_file = True
-                event_line = ''
+                event_process_object.skip_group = True
+                return
         else:
-            event_line = event_array[0]
-        if not event_line:
-            return
+            event_line = next_match.group(0)
+        # event_line = self.get_group(event_process_object.text, next_match, 0)
+        # event_line = event_process_object.text[next_match.regs[0][0]:next_match.regs[0][1]]
         # event_line = event_array[0]
         event_len = len(bytes(event_line, 'utf8'))
+        # event_len = 0
         raw_log_event = RawLogProps(
                             time=event_time,
                             file=file_object,
                             file_pos=file_object.raw_position,
-                            duration=int(event_array[4]),
-                            name=event_array[5],
-                            level=event_array[6],
+                            duration=int(next_match.group(4)),
+                            name=next_match.group(5),
+                            level=next_match.group(6),
                             time_str=event_time_str
                             )
         tech_log_event = TechLogEvent(
@@ -224,21 +247,21 @@ class LogReaderBaseVector(LogBase):
                             )
         file_object.raw_position = tech_log_event.event.file_pos + tech_log_event.event_len
         # self.execute_handlers(process_path, tech_log_event)
+        self.execute_handlers(event_process_object.process_path, tech_log_event)
 
-        if index == -1:
-            event_process_object.event_previous = tech_log_event
+        # if index == -1:
+        #     event_process_object.event_previous = tech_log_event
         
-        if not event_process_object.event_previous:
-            event_process_object.event_previous = tech_log_event
-            return
+        # if not event_process_object.event_previous:
+        #     event_process_object.event_previous = tech_log_event
+        #     return
         
 
-        event_process_object.current_pos = next_match.start()
-        event_process_object.event_count += 1
         
         # print(event_process_object.event_previous)
         
-        event_process_object.event_previous = tech_log_event
+        
+        # event_process_object.event_previous = tech_log_event
         pass
     
     def process_file(self, process_path: str, file_object: TechLogFile) -> None:
@@ -270,12 +293,13 @@ class LogReaderBaseVector(LogBase):
             file_object.date_hour = datetime.strptime(date_hour[:8], TimePatterns.format_date_hour)
             size_read = 1_000_000
             text = ''
+            
             file_object.raw_position = f.tell()
             cnt_reads = floor(p.stat().st_size / size_read) + 2
             vec_event_process = np.vectorize(self.event_process)
-            # vec_event_process2 = np.vectorize(self.event_process2)
+            vec_event_process2 = np.vectorize(self.event_process2)
             
-            arr100 = np.r_[0:10000:1]
+            arr100 = np.r_[0:600:1]
             
             for _ in range(cnt_reads):
                 read_text = f.read(size_read)
@@ -289,32 +313,38 @@ class LogReaderBaseVector(LogBase):
                 # # eventc_count = RePatterns.re_new_event_findall.fullmatch
                 # # arr = list(events_iter)
                 # event_process_object.event_iter = events_iter
-                # event_process_object.len_arr = len(arr100)
-                # event_process_object.text = text
-                # event_process_object.event_count = 0
-                # event_process_object.skip_group = False
+                event_process_object.len_arr = len(arr100)
+                event_process_object.text = text
+                event_process_object.event_count = 0
+                event_process_object.skip_group = False
+                event_process_object.current_pos = 0
                 
-                # vec_event_process2(event_process_object, file_object, arr100)
+                vec_event_process2(event_process_object, file_object, arr100)
                 
-                # if not event_process_object.skip_group:
-                #     raise ValueError('not all processed')
+                if not event_process_object.skip_group:
+                    vec_event_process2(event_process_object, file_object, arr100)
+                # print(f'event_process_object.event_count: {event_process_object.event_count}')
                 
-                # if event_process_object.event_count == 1:
-                #     arr100 = np.array([-1], dtype=np.int)
+                if not event_process_object.skip_group:
+                    raise ValueError('not all processed')
+                
+                if event_process_object.event_count == 1:
+                    arr100 = np.array([-1], dtype=np.int)
                 text = text[event_process_object.current_pos:]
                 
-                arr = RePatterns.re_new_event_findall.findall(text)
-                arr.insert(0, '')
-                if not read_text:
-                    arr.append('')
-                np_arr = np.array(arr, dtype="object")
-                indexes = np.r_[0:len(np_arr):1]
-                vec_event_process(process_path, file_object, len(np_arr), indexes, np_arr)
-                # break
-                # break
+
+
+                # arr = RePatterns.re_new_event_findall.findall(text)
+                # arr.insert(0, '')
+                # if not read_text:
+                #     arr.append('')
+                # np_arr = np.array(arr, dtype="object")
+                # indexes = np.r_[0:len(np_arr):1]
+                # vec_event_process(process_path, file_object, len(np_arr), indexes, np_arr)
+
                 if not read_text:
                     break          
-                else:
-                    text = arr[-1][0]
+                # else:
+                #     text = arr[-1][0]
             pass
 
