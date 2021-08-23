@@ -6,13 +6,13 @@ from LogReader import LogReaderBase, LogReaderStream
 
 profile = True
 
-
 def main():
 
     # log_reader = LogReaderBase('bill', '//app-bill-nord/logz_full/Logs_full')
     # log_reader = LogReaderBase('test', '//onyx-1c-ppo2/Logz/PPO_Store_FULL')
     # log_reader = LogReaderStream('test', 'logs', 'settings.json')
-    log_reader = LogReaderStream('bill', '//app-bill-nord/logz_full/Logs_full', 'settings.json')
+    # log_reader = LogReaderStream('bill', '//app-bill-nord/logz_full/Logs_full', 'settings.json')
+    log_reader = LogReaderStream('bill', 'logs/Logs_full', 'settings.json')
     
     # \\onyx-1c-ppo2\Logz\PPO_Store_FULL
     # f.raw_data = False
@@ -31,7 +31,9 @@ def main():
     
     log_reader.connect(log_writer_by_minute)
 
-    log_reader.main()
+    # log_reader.init_stream(datetime.now() - timedelta(seconds=10))
+    log_reader.init_stream(datetime(2021, 8, 23, 12, 10, 0, 0))
+    # log_reader.main()
     pass
 
 if __name__ == '__main__':

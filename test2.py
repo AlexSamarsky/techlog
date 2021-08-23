@@ -1,25 +1,27 @@
 from LogDataclasses import RePatterns
+import chardet
+import codecs
 # s = "�ВЖурнале(ДанныеОперации, ПокупательСсылка, ТекстОшибки);\n\t\tОбщийМодуль.ОбщегоНазначения.Модуль : 135 : Запись.Записать();'\n06:14.833035-2,CALL,1,process=rmngr,p:processName=RegMngrCntxt,p:processName=ServerJobExecutorContext,t:clientID=4546,"
 
 file_name = 'logs\\Logs_full\\rmngr_3236\\21082312.log'
 
-with open(file_name, 'r', encoding='utf-8-sig') as f:
+with open(file_name, 'rb') as f:
     
     # f_seek = 176580197
     f_seek = 176580303
 
     f.seek(f_seek)
     # f_seek += 3
-    text = f.read(100)
+    b_text = f.read(200)
 
-    b_text = bytes(text, 'utf-8')
+    text = b_text.decode('utf-8', 'replace')
 
     # if bytes(text[0], 'utf-8') == b'\xef\xbf\xbd':
     #     text = text[1:]
     #     f_seek += 1
 
     # rs2 = rs2[1:]
-    match = RePatterns.re_new_event.search(text)
+    match = RePatterns.re_new_event.search(text[5:6])
     inc = 219
 
     # text = rs2.encode('utf8')

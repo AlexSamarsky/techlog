@@ -48,7 +48,6 @@ class LogReaderBaseVector(LogBase):
                                                     full_path=str(f),
                                                     rel_path=rel_path,
                                                     init_path=path_or_file
-                                                    
                                                 ))
                         # self.__filter_file(str(f))
             elif os.path.isfile(path_or_file):
@@ -80,13 +79,14 @@ class LogReaderBaseVector(LogBase):
         p = Path(file_name)
         # file_path: Path = p.absolute()
         time_in_file = p.stem
-        with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
+        with open(file_name, 'rb') as f:
             p: Path = Path(file_name)
             file_size: int = p.stat().st_size
             last_actual_seek_position: int = 0
             portion: int = file_size
             date_hour_str = time_in_file[:8]
             date_hour = datetime.strptime(time_in_file[:8], TimePatterns.format_date_hour)
+
             if not start_seek:
                 start_seek: int = last_actual_seek_position
                 
@@ -103,10 +103,19 @@ class LogReaderBaseVector(LogBase):
                     for i in range(1, count_seeks - 1):
                         current_seek = start_seek + i * portion
                         f.seek(current_seek)
-                        text = f.read(10_000)
+                        b_text = f.read(10_000)
+                        text = b_text.decode('utf8', 'replace')
+                        if bytes(text[0], 'utf8') == b'\xef\xbf\xbd':
+                            text = text[1:]
+                            shift = 1
+                        else:
+                            shift = 0
+                        if not text:
+                            break
                         search_event = RePatterns.re_new_event.search(text)
                         if not search_event:
-                            raise ValueError('event not found')
+                            break
+                            # raise ValueError('event not found')
                         
                         minutes = search_event.group(1)
                         seconds = search_event.group(2)
@@ -122,9 +131,19 @@ class LogReaderBaseVector(LogBase):
                         filter_time_result = self.filter_time(event_time)
                         if filter_time_result == -1:
                             text_before = text[:search_event.start()]
-                            len_text_before = len(bytes(text_before, 'utf8'))
+                            len_text_before = len(bytes(text_before, 'utf-8'))
                             
-                            last_actual_seek_position = current_seek + len_text_before
+                            last_actual_seek_position = current_seek + len_text_before + shift
+
+                            f.seek(last_actual_seek_position)
+                            b_text2 = f.read(10_000)
+                            text2 = b_text2.decode('utf8', 'replace')
+                            match_event = RePatterns.re_new_event.match(text2)
+                            if not match_event:
+                                print('excp')
+                                raise ValueError('error calculation start event')
+                            pass
+
                         else:
                             break
                     # if founded_position:
@@ -326,6 +345,8 @@ class LogReaderBaseVector(LogBase):
                 read_text = f.read(size_read)
                 if read_text:
                     event_process_object.text += read_text
+                if not event_process_object.text:
+                    break
                 event_process_object.len_arr = len(arr100)
                 # event_process_object.text = text
                 event_process_object.event_count = 0

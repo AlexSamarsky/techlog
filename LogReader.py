@@ -1,4 +1,3 @@
-
 import os
 from pathlib import Path
 from typing import Any, Generator, List, Match
@@ -10,6 +9,7 @@ import json
 import numpy as np
 
 from LogBase import LogBase
+from LogReaderVector import LogReaderBaseVector
 from LogDataclasses import TechLogEvent, TechLogFile, RawLogProps, TimePatterns, RePatterns
 
 class LogReaderBase(LogBase):
@@ -344,7 +344,7 @@ class LogReaderBase(LogBase):
                     lines = [file_line]
 
 
-class LogReaderStream(LogReaderBase):
+class LogReaderStream(LogReaderBaseVector):
     pass
 
     def __init__(self, name: str, files_path: str, settings_path: str) -> None:
@@ -378,7 +378,7 @@ class LogReaderStream(LogReaderBase):
                 self._settings[file_object.full_path] = raw_position
             else:
                 file_object.raw_position = raw_position
-        self._files_array = []
+        # self._files_array = []
         
     def execute_end(self) -> None:
         settings = {}
@@ -395,8 +395,11 @@ class LogReaderStream(LogReaderBase):
         process_path = 'init'
         if self._files_array:
             for file_object in self._files_array:
-                file_object.raw_position = 0
-                tech_log_event = next(self.process_file(process_path, file_object), None)
-                if tech_log_event == None:
+                if self._tech_log_period.filter_time and self._raw_data and self.filter_time(Path(file_object.full_path).stem) == -1:
                     file_object.raw_position = Path(file_object.full_path).stat().st_size
+                else:
+                    file_object.raw_position = self.seek_position(file_object.full_path, 0)
+                # tech_log_event = next(self.process_file(process_path, file_object), None)
+                # if tech_log_event == None:
+                    # file_object.raw_position = Path(file_object.full_path).stat().st_size
         self.execute_end()
