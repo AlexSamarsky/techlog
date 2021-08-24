@@ -12,11 +12,11 @@ def main():
     # log_reader = LogReaderBase('test', '//onyx-1c-ppo2/Logz/PPO_Store_FULL')
     # log_reader = LogReaderStream('test', 'logs', 'settings.json')
     # log_reader = LogReaderStream('bill', '//app-bill-nord/logz_full/Logs_full', 'settings.json')
-    log_reader = LogReaderStream('bill', 'logs/Logs_full', 'settings.json')
+    log_reader = LogReaderStream('bill', 'logs/Logs_full/', 'settings.json')
     
     # \\onyx-1c-ppo2\Logz\PPO_Store_FULL
     # f.raw_data = False
-    # log_reader.set_time(datetime(2021, 8, 20, 9, 0, 0, 0), datetime(2021, 8, 20, 9, 5,  0, 0))
+    log_reader.set_time(datetime(2021, 8, 23, 11, 0, 0, 0), datetime(2021, 8, 23, 11, 5,  0, 0))
 
     # log_writer_file = LogWriteToFile('write_file', 'logs_test/bill/test_out.log')
     # log_writer_console = LogWriteToConsole('console')
@@ -32,8 +32,8 @@ def main():
     log_reader.connect(log_writer_by_minute)
 
     # log_reader.init_stream(datetime.now() - timedelta(seconds=10))
-    log_reader.init_stream(datetime(2021, 8, 23, 12, 10, 0, 0))
-    # log_reader.main()
+    # log_reader.init_stream(datetime(2021, 8, 23, 12, 10, 0, 0))
+    log_reader.main()
     pass
 
 if __name__ == '__main__':

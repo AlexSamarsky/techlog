@@ -104,6 +104,8 @@ class EventsProcessObject:
     text: str = ''
     event_iter: Iterator[Match] = None
     current_pos: int = 0
+    current_pos_bytes: int = 0
     event_count: int = 0
     event_previous: TechLogEvent = None
     tech_log_event: TechLogEvent = None
+    f = None

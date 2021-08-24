@@ -146,30 +146,7 @@ class LogReaderBaseVector(LogBase):
 
                         else:
                             break
-                    # if founded_position:
-                    #     break
-                        
-                        # if current_seek > 0:
-                        #     f.readline()
-                        # for _ in range(1000):
-                        #     seek_position = f.tell()
-                        #     line: str = f.readline()
-                        #     if not line:
-                        #         founded_position = True
-                        #         break
-                        #     match_new_line: Match[str] = RePatterns.re_new_event.match(line)
-                        #     if match_new_line:
-                        #         groups = match_new_line.groups()
-                        #         event_time = time_in_file + groups[0] + groups[1]
 
-                        #         filter_time_result = self.filter_time(event_time)
-                        #         if filter_time_result == -1:
-                        #             last_actual_seek_position = seek_position
-                        #         else:
-                        #             founded_position = True
-                        #         break
-                        # if founded_position:
-                        #     break
                     if not current_seek:
                         break
         return last_actual_seek_position
@@ -235,9 +212,6 @@ class LogReaderBaseVector(LogBase):
         if not next_match:
             event_process_object.skip_group = True
             return
-        event_process_object.current_pos = next_match.regs[0][1]
-        event_process_object.event_count += 1
-
         minutes = next_match.group(1)
         seconds = next_match.group(2)
         microseconds = next_match.group(3)
@@ -260,7 +234,12 @@ class LogReaderBaseVector(LogBase):
                 return
         else:
             event_line = next_match.group(0)
-        event_len = len(bytes(event_line, 'utf8'))
+
+        event_process_object.event_count += 1
+        event_len_bytes = len(bytes(event_line, 'utf8'))
+        event_len = len(event_line)
+        event_process_object.current_pos += event_len
+        event_process_object.current_pos_bytes += event_len_bytes
         event_process_object.tech_log_event.event.file_pos = file_object.raw_position
         event_process_object.tech_log_event.event.duration = int(next_match.group(4))
         event_process_object.tech_log_event.event.name = next_match.group(5)
@@ -268,6 +247,17 @@ class LogReaderBaseVector(LogBase):
         event_process_object.tech_log_event.event.time_str = event_time_str
         event_process_object.tech_log_event.text = event_line
         event_process_object.tech_log_event.event_len = event_len
+
+
+        event_process_object.f.seek(event_process_object.current_pos_bytes+3)
+        b_text2 = event_process_object.f.read(10_000)
+        text2 = b_text2.decode('utf8', 'replace')
+        match_event = RePatterns.re_new_event.match(text2)
+        if not match_event:
+            print('excp')
+            raise ValueError('error calculation start event')
+        pass
+
 
         # raw_log_event = RawLogProps(
         #                     time=event_time,
@@ -294,7 +284,8 @@ class LogReaderBaseVector(LogBase):
         date_hour = time_in_file
         event_process_object = EventsProcessObject(process_path=process_path)
         
-        with open(file_object.full_path, 'r', encoding=self._encoding, errors='replace') as f:
+        # with open(file_object.full_path, 'rb', encoding=self._encoding, errors='replace') as f:
+        with open(file_object.full_path, 'rb') as f:
             
             if self._tech_log_period.filter_time and not self.__filter_file(time_in_file):
                 return
@@ -338,13 +329,22 @@ class LogReaderBaseVector(LogBase):
                                 )
 
             event_process_object.tech_log_event = tech_log_event
-
+            event_process_object.f = f
+            event_process_object.current_pos_bytes = 0
+            file_pos = 0
             arr100 = np.r_[0:1200:1]
-            
+            b_text = b''
             for _ in range(cnt_reads):
-                read_text = f.read(size_read)
-                if read_text:
-                    event_process_object.text += read_text
+                f.seek(file_pos)
+                b_read_text = f.read(size_read)
+                file_pos += size_read
+                # read_text = b_read_text.decode('utf8', 'replace')
+                if b_read_text[:3] == b'\xef\xbb\xbf':
+                    b_read_text = b_read_text[3:]
+                    
+                if b_read_text:
+                    b_text += b_read_text
+                    event_process_object.text = b_text.decode('utf8', 'replace')
                 if not event_process_object.text:
                     break
                 event_process_object.len_arr = len(arr100)
@@ -353,6 +353,7 @@ class LogReaderBaseVector(LogBase):
                 event_process_object.skip_group = False
                 event_process_object.current_pos = 0
                 
+
                 vec_event_process2(event_process_object, file_object, arr100)
                 
                 if not event_process_object.skip_group:
@@ -370,7 +371,9 @@ class LogReaderBaseVector(LogBase):
                 
                 if event_process_object.event_count == 1:
                     arr100 = np.array([-1], dtype=np.int)
-                event_process_object.text = event_process_object.text[event_process_object.current_pos:]
+                
+                b_text = b_text[event_process_object.current_pos_bytes:]
+                # event_process_object.text = event_process_object.text[event_process_object.current_pos:]
                 
 
 
@@ -382,7 +385,7 @@ class LogReaderBaseVector(LogBase):
                 # indexes = np.r_[0:len(np_arr):1]
                 # vec_event_process(process_path, file_object, len(np_arr), indexes, np_arr)
 
-                if not read_text:
+                if not b_read_text:
                     break          
                 # else:
                 #     text = arr[-1][0]
