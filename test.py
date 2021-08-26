@@ -1,16 +1,17 @@
 from LogDataclasses import RePatterns
+import io
 # s = "�ВЖурнале(ДанныеОперации, ПокупательСсылка, ТекстОшибки);\n\t\tОбщийМодуль.ОбщегоНазначения.Модуль : 135 : Запись.Записать();'\n06:14.833035-2,CALL,1,process=rmngr,p:processName=RegMngrCntxt,p:processName=ServerJobExecutorContext,t:clientID=4546,"
+# io.open
+file_name = 'logs\\Logs_full\\rphost_4180\\21082311.log'
 
-file_name = 'logs\\Logs_full\\rmngr_3236\\21082312.log'
-
-with open(file_name, 'r', encoding='utf-8-sig') as f:
+with io.open(file_name, 'r', encoding='utf-8-sig', newline='') as f:
     
     # f_seek = 176580197
-    f_seek = 176580303
+    f_seek = 0
 
     f.seek(f_seek)
     # f_seek += 3
-    text = f.read(100)
+    text = f.read(21349)
 
     b_text = bytes(text, 'utf-8')
 

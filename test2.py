@@ -2,16 +2,16 @@ from LogDataclasses import RePatterns
 import codecs
 # s = "�ВЖурнале(ДанныеОперации, ПокупательСсылка, ТекстОшибки);\n\t\tОбщийМодуль.ОбщегоНазначения.Модуль : 135 : Запись.Записать();'\n06:14.833035-2,CALL,1,process=rmngr,p:processName=RegMngrCntxt,p:processName=ServerJobExecutorContext,t:clientID=4546,"
 
-file_name = 'logs\\Logs_full\\rmngr_3236\\21082312.log'
+file_name = 'logs\\Logs_full\\rphost_4180\\21082311.log'
 
 with open(file_name, 'rb') as f:
     
     # f_seek = 176580197
-    f_seek = 176580303
+    f_seek = 0
 
     f.seek(f_seek)
     # f_seek += 3
-    b_text = f.read(200)
+    b_text = f.read(21349)
 
     text = b_text.decode('utf-8', 'replace')
 

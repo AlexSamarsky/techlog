@@ -98,3 +98,41 @@ class LogBase():
     def process(self) -> bool:
         return True
 
+    def init(self) -> None:
+        self.execute_init_handlers()
+    
+    def execute_init(self) -> None:
+        pass
+
+    def execute_init_handlers(self) -> None:
+        self.execute_init()
+        for h in self._handlers:
+            h.execute_init_handlers()
+
+    def seek_files(self) -> List[TechLogFile]:
+        if not self._files_path:
+            return
+        path_or_file: str = self._files_path
+        self._files_array: List[TechLogFile] = []
+        
+        try:
+            if os.path.isdir(path_or_file):
+                p: Path = Path(path_or_file)
+                for f in p.glob('**/*'):
+                    if os.path.isfile(f):
+                        path_list = f.parts[len(p.parts):-1]
+                        if len(path_list):
+                            rel_path = os.path.join(*path_list)
+                        else:
+                            rel_path = ''
+                        self._files_array.append(TechLogFile(
+                                                    full_path=str(f),
+                                                    rel_path=rel_path,
+                                                    init_path=path_or_file
+                                                ))
+                        # self.__filter_file(str(f))
+            elif os.path.isfile(path_or_file):
+                self._files_array.append(TechLogFile(full_path=path_or_file))
+                # self.__filter_file(path_or_file)
+        except FileNotFoundError:
+            pass

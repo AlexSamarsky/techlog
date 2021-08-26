@@ -79,7 +79,7 @@ class LogReaderBase(LogBase):
         p = Path(file_name)
         # file_path: Path = p.absolute()
         time_in_file = p.stem
-        with open(file_name, 'r', encoding=self._encoding, errors='replace') as f:
+        with open(file_name, 'r', encoding=self._encoding, errors='replace', newline='') as f:
             p: Path = Path(file_name)
             file_size: int = p.stat().st_size
             last_actual_seek_position: int = 0
@@ -134,7 +134,7 @@ class LogReaderBase(LogBase):
         file_path: Path = p.absolute()
         time_in_file = file_path.stem
         date_hour = time_in_file
-        with open(file_object.full_path, 'r', encoding=self._encoding, errors='replace') as f:
+        with open(file_object.full_path, 'r', encoding=self._encoding, errors='replace', newline='') as f:
             
             if self._tech_log_period.filter_time and not self.__filter_file(time_in_file):
                 return
