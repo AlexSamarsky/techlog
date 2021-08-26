@@ -8,6 +8,8 @@ from LogBase import LogBase
 from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TimePatterns, RePatterns
 from pathlib import Path
 from Timer import MicroTimer
+import multiprocessing as mp
+import time
 
 class LogWriteToConsole(LogBase):
 
@@ -71,7 +73,11 @@ class LogWriteToFile(LogWriteToConsole):
     def get_file_io(self, full_path: str) -> TextIOWrapper:
         p = Path(full_path)
         if not p.parent.exists():
-            p.parent.mkdir(parents=True)
+            try:
+                p.parent.mkdir(parents=True, exist_ok=True)
+            except:
+                time.sleep(0.1)
+                p.parent.mkdir(parents=True, exist_ok=True)
         file_io = open(full_path, self._append_to_file, encoding=self._encoding)
         search_cache = TechLogFile(
             full_path = full_path,
@@ -155,6 +161,22 @@ class LogWriteToCatalogByField(LogWriteToFile):
         self._append_to_file: str = 'w'
         self._by_minute = False
         self._field_name = None
+        self.file_name = file_name
+        self._time_str_len = 8
+
+    @property
+    def file_name(self) -> str:
+        return self._path_file_name
+    
+    @file_name.setter
+    def file_name(self, file_name: str) -> None:
+        self._path_file_name: str = file_name
+        p = Path(file_name)
+        if p.suffix:
+            self._is_file = True
+        else:
+            self._is_file = False
+
 
     @property
     def field_name(self) -> str:
@@ -198,16 +220,19 @@ class LogWriteToCatalogByField(LogWriteToFile):
         return full_path
 
     def get_file_name_from_log_event(self, log_event: TechLogEvent) -> None:
-        if self._pattern_field:
-            field_search = self._pattern_field.search(log_event.text)
-            if not field_search:
-                field_value = 'etc'
-            else:
-                field_value = field_search.group(0)
+        if self._is_file:
+            return self._path_file_name
         else:
-            field_value = None
-        
-        full_path = self.get_file_name(log_event.event.time_str[:self._time_str_len], log_event.event.file.rel_path, field_value)
+            if self._pattern_field:
+                field_search = self._pattern_field.search(log_event.text)
+                if not field_search:
+                    field_value = 'etc'
+                else:
+                    field_value = field_search.group(0)
+            else:
+                field_value = None
+            
+            full_path = self.get_file_name(log_event.event.time_str[:self._time_str_len], log_event.event.file.rel_path, field_value)
         return full_path
 
     def execute_end(self):

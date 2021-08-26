@@ -8,6 +8,7 @@ from math import floor
 from colorama import Fore, Style
 import json
 import numpy as np
+import multiprocessing as mp
 
 from LogBase import LogBase
 from LogDataclasses import EventsProcessObject, TechLogEvent, TechLogFile, RawLogProps, TimePatterns, RePatterns
@@ -19,8 +20,9 @@ class LogReaderBaseVector(LogBase):
         self._files_path: str = files_path
         self._files_array: List[TechLogFile] = []
         self._raw_data: bool = True
-        self._file_process_alg = 'numpy'
         self._cnt_on = False
+        self._multithreading = False
+        self._number_proc = 3
 
     @property
     def raw_data(self) -> bool:
@@ -58,6 +60,14 @@ class LogReaderBaseVector(LogBase):
         except FileNotFoundError:
             pass
 
+    def _worker_file_process(self, input):
+        """Функция, выполняемая рабочими процессами"""
+        for line in iter(input.get, 'STOP'):
+            self.process_file(line[0], line[1])
+            # result = self._string_process_with_write(line)
+            # self._write_stream(result)
+            # output.put(True)
+
     def __filter_file(self, file_name) -> bool:
         if self._raw_data:
             if self.filter_time(Path(file_name).stem) != 0:
@@ -68,8 +78,29 @@ class LogReaderBaseVector(LogBase):
     def main_process(self, process_path: str) -> None:
         self.seek_files()
         if self._files_array:
-            for file_object in self._files_array:
-                self.process_file(process_path, file_object)
+            if self._multithreading:
+                queue = mp.Queue(len(self._files_array)+self._number_proc)
+                for file_object in self._files_array:
+                    obj = (process_path, file_object)
+                    queue.put(obj)
+                
+                proc_arr = []
+
+                for _ in range(self._number_proc):
+                    queue.put('STOP')
+                    proc = mp.Process(target=self._worker_file_process, args=(queue, ))
+                    proc_arr.append(proc)
+                    proc.start()
+
+                for proc in proc_arr:
+                    proc.join()
+                    proc.close()
+
+                print('end of processes')
+                    # self.process_file(process_path, file_object)
+            else:
+                for file_object in self._files_array:
+                    self.process_file(process_path, file_object)
                 # try:
                 #     for tech_log_event in self.process_file(process_path, file_object):
                 #         self.execute_handlers(process_path, tech_log_event)
@@ -89,15 +120,15 @@ class LogReaderBaseVector(LogBase):
             date_hour_str = time_in_file[:8]
             date_hour = datetime.strptime(time_in_file[:8], TimePatterns.format_date_hour)
 
-            read_size = 1_000_000
+            read_size: int = 1_000_000
 
             if not start_seek:
                 start_seek: int = last_actual_seek_position
             
-            start_count = 0
+            start_count: int = 0
 
             for _ in range(10):
-                if portion < 10_000:
+                if portion < 100_000:
                     break
                 else:
                     portion = floor(portion / 10)
@@ -234,13 +265,13 @@ class LogReaderBaseVector(LogBase):
         date_hour = time_in_file
         event_process_object = EventsProcessObject(process_path=process_path)
         
+        print(f'START {datetime.now()} / {file_object.full_path}')
         with open(file_object.full_path, 'r', encoding=self._encoding, errors='replace', newline='') as f:
         # with open(file_object.full_path, 'rb') as f:
             
             if self._tech_log_period.filter_time and not self.__filter_file(time_in_file):
                 return
             
-            print(f'{datetime.now()} / {file_object.full_path}')
 
             if file_object.raw_position > 0:
                 f.seek(file_object.raw_position)
@@ -335,4 +366,5 @@ class LogReaderBaseVector(LogBase):
                     # texttt = f.read(1000)
                     break          
             pass
+        print(f'END   {datetime.now()} / {file_object.full_path}')
 
