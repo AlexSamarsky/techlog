@@ -76,14 +76,14 @@ class TechLogPeriod:
     
 class RePatterns:
     re_rphost = re.compile(r'rphost_([\d]+)')
-    re_new_event = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),", flags=re.MULTILINE)
-    re_new_event_sub = re.compile(r"^(\d{2,12}:\d{2}\.\d{4,6}-\d+,\w+,\d+,)", flags=re.MULTILINE)
+    re_new_event = re.compile(r"^(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),", flags=re.MULTILINE)
+    re_new_event_sub = re.compile(r"^(\d{2,10}:\d{2}\.\d{4,6}-\d+,\w+,\d+,)", flags=re.MULTILINE)
     # re_new_event_findall = re.compile(r"((\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2}:\d{2}.\d{4,6})|\Z))", flags=re.MULTILINE | re.S)
     # re_new_event_findall = re.compile(r"((\d{2,10}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2}:\d{2}\.\d{6})))", flags=re.MULTILINE | re.S)
     # re_new_event_findall_last = re.compile(r"((\d{2,10}):(\d{2})\.(\d{6})-(\d+),(\w+),(\d+),.+)", flags=re.MULTILINE | re.S)
 
     # re_new_event_findall = re.compile(r"(.+?(?:^(?=\d{2}:\d{2}.)|\Z))", flags=re.MULTILINE | re.S)
-    re_new_event_line = re.compile(r"^(\d{2,12}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),")
+    re_new_event_line = re.compile(r"^(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),")
 
 
     re_new_event_findall = re.compile(r"(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2}:\d{2}\.\d{4,6}))", flags=re.MULTILINE | re.S)
@@ -102,6 +102,7 @@ class EventsProcessObject:
     process_path: str = ''
     len_arr: int = 0
     text: str = ''
+    len_text:int = 0
     event_iter: Iterator[Match] = None
     current_pos: int = 0
     current_pos_bytes: int = 0

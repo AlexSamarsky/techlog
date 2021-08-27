@@ -203,10 +203,11 @@ class LogReaderBaseVector(LogBase):
                     break
         return last_actual_seek_position
 
-    def event_process2(self, event_process_object: EventsProcessObject, file_object, index) -> None:
+    def event_process2(self, event_process_object: EventsProcessObject, file_object: TechLogFile, index: int) -> None:
         if event_process_object.skip_group:
             return
         
+
         if event_process_object.len_arr == 1:
             next_match = RePatterns.re_new_event_findall_last.match(event_process_object.text, pos=event_process_object.current_pos)
         else:
@@ -215,6 +216,10 @@ class LogReaderBaseVector(LogBase):
         if not next_match:
             event_process_object.skip_group = True
             return
+
+        # event_process_object.current_pos = len(event_process_object.text)
+        # event_process_object.skip_group = True
+
         minutes = next_match.group(1)
         seconds = next_match.group(2)
         microseconds = next_match.group(3)
@@ -229,6 +234,7 @@ class LogReaderBaseVector(LogBase):
         event_time = file_object.date_hour + time_delta
         event_line = next_match.group(0)
         event_len = len(event_line)
+
         event_process_object.current_pos += event_len
         if self._tech_log_period.filter_time:
             filter_time_result = self.filter_time(event_time)
@@ -252,7 +258,13 @@ class LogReaderBaseVector(LogBase):
         event_process_object.tech_log_event.text = event_line
         event_process_object.tech_log_event.event_len = event_len
 
-        file_object.raw_position = event_process_object.tech_log_event.event.file_pos + event_process_object.tech_log_event.event_len
+
+        match_begin = RePatterns.re_new_event.match(event_process_object.text, pos=event_process_object.current_pos)
+        if not match_begin and event_process_object.len_text - event_process_object.current_pos > 30:
+            cnterror = 1
+
+
+        # file_object.raw_position = event_process_object.tech_log_event.event.file_pos + self.calc_line_len(event_process_object.tech_log_event.text)
         self.execute_handlers(event_process_object.process_path, event_process_object.tech_log_event)
 
     def calc_line_len(self, text) -> int:
@@ -265,14 +277,13 @@ class LogReaderBaseVector(LogBase):
         date_hour = time_in_file
         event_process_object = EventsProcessObject(process_path=process_path)
         
-        print(f'START {datetime.now()} / {file_object.full_path}')
         with open(file_object.full_path, 'r', encoding=self._encoding, errors='replace', newline='') as f:
         # with open(file_object.full_path, 'rb') as f:
             
             if self._tech_log_period.filter_time and not self.__filter_file(time_in_file):
                 return
             
-
+            print(f'START {Style.BRIGHT}{Fore.YELLOW}{datetime.now()}{Fore.RESET} / {Fore.GREEN}{mp.current_process().name}{Fore.RESET} / {Fore.MAGENTA}{file_object.full_path}{Style.RESET_ALL}')
             if file_object.raw_position > 0:
                 f.seek(file_object.raw_position)
             elif self._tech_log_period.filter_time and self._raw_data:
@@ -305,7 +316,7 @@ class LogReaderBaseVector(LogBase):
                                 time_str=''
                                 )
             tech_log_event = TechLogEvent(
-                                text='',
+                                text='', 
                                 event=raw_log_event,
                                 event_len=0,
                                 )
@@ -314,7 +325,8 @@ class LogReaderBaseVector(LogBase):
             event_process_object.f = f
             event_process_object.current_pos_bytes = 0
             prev_position = 0
-            arr100 = np.r_[0:600:1]
+            arr100 = np.r_[0:1200:1]
+            cnt_vectorize = 0
             for _ in range(cnt_reads):
                 # prev_position = f.tell
                 read_text = f.read(size_read)
@@ -329,12 +341,13 @@ class LogReaderBaseVector(LogBase):
                     file_object.raw_position = f.tell()
                     break
                 elif len(event_process_object.text) > 30 * size_read:
-                    print(len(event_process_object.text))
+                    print(f'error parse text, len string: {len(event_process_object.text)}')
                     # raise ValueError('Too big text')
                 event_process_object.len_arr = len(arr100)
                 event_process_object.event_count = 0
                 event_process_object.skip_group = False
                 event_process_object.current_pos = 0
+                event_process_object.len_text = len(event_process_object.text)
                 
 
                 vec_event_process2(event_process_object, file_object, arr100)
@@ -345,18 +358,14 @@ class LogReaderBaseVector(LogBase):
                 if not event_process_object.skip_group:
                     while not event_process_object.skip_group:
                         vec_event_process2(event_process_object, file_object, arr100)
+                        cnt_vectorize += 1
                 
                 if not event_process_object.skip_group:
                     raise ValueError('not all processed')
                 
                 if file_object.skip_file:
                     file_object.raw_position = f.tell() - self.calc_line_len(event_process_object.text[event_process_object.current_pos:])
-                    # f.seek(file_object.raw_position)
-                    # texttt = f.read(1000)
                     break
-                
-                # if event_process_object.event_count == 1:
-                #     arr100 = np.array([-1], dtype=np.int)
                 
                 event_process_object.text = event_process_object.text[event_process_object.current_pos:]
                 
@@ -365,6 +374,6 @@ class LogReaderBaseVector(LogBase):
                     # f.seek(file_object.raw_position)
                     # texttt = f.read(1000)
                     break          
-            pass
-        print(f'END   {datetime.now()} / {file_object.full_path}')
+            
+            print(f'END   {Style.BRIGHT}{Fore.YELLOW}{datetime.now()}{Fore.RESET} / {Fore.GREEN}{mp.current_process().name}{Fore.RESET} / {Fore.MAGENTA}{file_object.full_path}{Style.RESET_ALL} / {cnt_vectorize}')
 

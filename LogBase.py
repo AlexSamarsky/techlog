@@ -18,6 +18,7 @@ class LogBase():
         self._event_object: TechLogEvent = None
         self._tech_log_period: TechLogPeriod = TechLogPeriod()
         self._encoding: str = "utf-8-sig"
+        self._parent = None
         
     @property
     def path(self) -> str:
@@ -59,6 +60,7 @@ class LogBase():
     def connect(self, handler) -> None:
         self._handlers.append(handler)
         self._handlers_len = len(self._handlers)
+        handler._parent = self
     
     def main(self):
         timer = Timer('test')

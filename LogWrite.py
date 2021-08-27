@@ -59,6 +59,7 @@ class LogWriteToFile(LogWriteToConsole):
     def execute_begin(self) -> None:
         super().execute_begin()
         self._files_list: List[TechLogFile] = []
+        self._lock = mp.Lock()
         # self._writer = open(self._path_file_name,  self._append_to_file, encoding=self._encoding)
 
     def execute_end(self) -> None:
@@ -91,9 +92,12 @@ class LogWriteToFile(LogWriteToConsole):
         return full_path
 
     def main_process(self, process_path: str, log_event: TechLogEvent) -> None:
+        # self._lock.acquire()
         full_path = self.get_file_name_from_log_event(log_event)
         file_io = self.get_file_io(full_path)
-        file_io.write(log_event.text.rstrip('\n').rstrip('\r')+self.generate_data(process_path,log_event)+'\n')
+        # self._lock.release()
+        # file_io.write(log_event.text.rstrip('\n').rstrip('\r')+self.generate_data(process_path,log_event)+'\n')
+        file_io.write(log_event.text)
 
     def init_stream(self):
         if not self._path_file_name:
@@ -106,50 +110,50 @@ class LogWriteToFile(LogWriteToConsole):
             except OSError:
                 os.remove(path)
 
-class LogWriteToCatalogByMinute(LogWriteToFile):
+# class LogWriteToCatalogByMinute(LogWriteToFile):
     
-    def __init__(self, name: str, file_name: str) -> None:
-        super().__init__(name, file_name)
-        p = Path(file_name)
-        if p.suffix:
-            raise ValueError ('Необходимо указать каталог')
-        if not p.exists():
-            p.mkdir(parents=True)
-        self._path_file_name = file_name
-        self._append_to_file: str = 'w'
+#     def __init__(self, name: str, file_name: str) -> None:
+#         super().__init__(name, file_name)
+#         p = Path(file_name)
+#         if p.suffix:
+#             raise ValueError ('Необходимо указать каталог')
+#         if not p.exists():
+#             p.mkdir(parents=True)
+#         self._path_file_name = file_name
+#         self._append_to_file: str = 'w'
 
-    def get_file_name_from_log_event(self, log_event: TechLogEvent) -> None:
-        pass
+#     def get_file_name_from_log_event(self, log_event: TechLogEvent) -> None:
+#         pass
 
-    def main_process(self, process_path: str, log_event: TechLogEvent) -> None:
-        stem = log_event.event.time_str[:10]
-        search_cache = None
-        if self._current_io:
-            if self._current_io.stem == stem and self._current_io.rel_path == log_event.event.file.rel_path:
-                search_cache = self._current_io
-        if not search_cache:
-            search_cache_list = list(filter(lambda x: x.stem == stem and x.rel_path == log_event.event.file.rel_path, self._files_list))
-            if search_cache_list:
-                search_cache = search_cache_list[0]
-        if search_cache:
-            file_io = search_cache.file_io
-        else:
-            file_name = f'{stem}.log'
-            full_path = os.path.join(self._path_file_name, log_event.event.file.rel_path, file_name)
-            full_path = full_path.replace('/', os.sep)
-            p = Path(full_path)
-            if not p.parent.exists():
-                p.parent.mkdir()
-            file_io = open(full_path,  self._append_to_file, encoding=self._encoding)
-            search_cache = TechLogFile(
-                full_path = full_path,
-                rel_path = log_event.event.file.rel_path,
-                stem = stem,
-                file_io = file_io,
-            )
-            self._files_list.append(search_cache)
-        self._current_io = search_cache
-        file_io.write(log_event.text.strip('\n')+self.generate_data(process_path,log_event)+'\n')
+#     def main_process(self, process_path: str, log_event: TechLogEvent) -> None:
+#         stem = log_event.event.time_str[:10]
+#         search_cache = None
+#         if self._current_io:
+#             if self._current_io.stem == stem and self._current_io.rel_path == log_event.event.file.rel_path:
+#                 search_cache = self._current_io
+#         if not search_cache:
+#             search_cache_list = list(filter(lambda x: x.stem == stem and x.rel_path == log_event.event.file.rel_path, self._files_list))
+#             if search_cache_list:
+#                 search_cache = search_cache_list[0]
+#         if search_cache:
+#             file_io = search_cache.file_io
+#         else:
+#             file_name = f'{stem}.log'
+#             full_path = os.path.join(self._path_file_name, log_event.event.file.rel_path, file_name)
+#             full_path = full_path.replace('/', os.sep)
+#             p = Path(full_path)
+#             if not p.parent.exists():
+#                 p.parent.mkdir()
+#             file_io = open(full_path,  self._append_to_file, encoding=self._encoding)
+#             search_cache = TechLogFile(
+#                 full_path = full_path,
+#                 rel_path = log_event.event.file.rel_path,
+#                 stem = stem,
+#                 file_io = file_io,
+#             )
+#             self._files_list.append(search_cache)
+#         self._current_io = search_cache
+#         file_io.write(log_event.text.strip('\n')+self.generate_data(process_path,log_event)+'\n')
 
 
 class LogWriteToCatalogByField(LogWriteToFile):
@@ -238,57 +242,4 @@ class LogWriteToCatalogByField(LogWriteToFile):
     def execute_end(self):
         super().execute_end()
         print(self.get_file_name.cache_info())
-
-class LogWriteToCatalog(LogWriteToFile):
-    
-    def __init__(self, name: str, file_name: str) -> None:
-        super().__init__(name, file_name)
-        p = Path(file_name)
-        if p.suffix:
-            raise ValueError ('Необходимо указать каталог')
-        if not p.exists():
-            p.mkdir(parents=True)
-        self._path_file_name = file_name
-        self._append_to_file: str = 'w'
-
-    def execute_begin(self) -> None:
-        self._files_list: List[TechLogFile] = []
-        self._current_io: TechLogFile = None
-        
-    def execute_end(self):
-        if self._files_list:
-            f: TechLogFile = None
-            for f in self._files_list:
-                if f.file_io:
-                    f.file_io.close()
-    
-    def main_process(self, process_path: str, log_event: TechLogEvent) -> None:
-        stem = log_event.event.time_str[:8]
-        search_cache = None
-        if self._current_io:
-            if self._current_io.stem == stem and self._current_io.rel_path == log_event.event.file.rel_path:
-                search_cache = self._current_io
-        if not search_cache:
-            search_cache_list = list(filter(lambda x: x.stem == stem and x.rel_path == log_event.event.file.rel_path, self._files_list))
-            if search_cache_list:
-                search_cache = search_cache_list[0]
-        if search_cache:
-            file_io = search_cache.file_io
-        else:
-            file_name = f'{stem}.log'
-            full_path = os.path.join(self._path_file_name, log_event.event.file.rel_path, file_name)
-            full_path = full_path.replace('/', os.sep)
-            p = Path(full_path)
-            if not p.parent.exists():
-                p.parent.mkdir()
-            file_io = open(full_path,  self._append_to_file, encoding=self._encoding)
-            search_cache = TechLogFile(
-                full_path = full_path,
-                rel_path = log_event.event.file.rel_path,
-                stem = stem,
-                file_io = file_io,
-            )
-            self._files_list.append(search_cache)
-        self._current_io = search_cache
-        file_io.write(log_event.text.strip('\n')+self.generate_data(process_path,log_event)+'\n')
 

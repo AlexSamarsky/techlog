@@ -1,7 +1,7 @@
 from LogReaderVector import LogReaderBaseVector
 from datetime import datetime, timedelta
 
-from LogWrite import LogWriteToCatalog, LogWriteToCatalogByField, LogWriteToCatalogByMinute, LogWriteToConsole, LogWriteToFile
+from LogWrite import LogWriteToCatalogByField, LogWriteToConsole, LogWriteToFile
 from LogFilter import LogFilterPattern
 from LogReader import LogReaderBase, LogReaderStream
 
@@ -9,17 +9,19 @@ profile = True
 
 def main():
 
-    log_reader = LogReaderBaseVector('upp', '//office-sql/logz_all/all/rphost_8940/21082315.log')
-    # log_reader = LogReaderBaseVector('upp', '//office-sql/logz_all/all')
-    log_writer = LogWriteToCatalogByField('upp_write', 'logs_test/upp/test/all')
-    log_writer.field_name = 'SessionID'
-    log_writer.by_minute = True
-    # log_filter = LogFilterPattern('ssid13505', ',SessionID=13505')
-    log_reader.connect(log_writer)
-    # log_filter.connect(log_writer)
-    log_reader.set_time(datetime(2021, 8, 23, 15, 35, 0, 0), datetime(2021, 8, 23, 15, 45,  0, 0))
-    log_writer.init_stream()
-    log_reader.main()
+    # log_reader = LogReaderBaseVector('upp', '//office-sql/logz_all/all/rphost_8940/21082315.log')
+    # # log_reader = LogReaderBaseVector('upp', '//office-sql/logz_all/all')
+    # log_reader.set_time(datetime(2021, 8, 23, 15, 35, 0, 0), datetime(2021, 8, 23, 15, 45,  0, 0))
+    
+    # log_writer = LogWriteToCatalogByField('upp_write', 'logs_test/upp/test/all')
+    # log_writer.field_name = 'SessionID'
+    # log_writer.by_minute = True
+    # # log_filter = LogFilterPattern('ssid13505', ',SessionID=13505')
+    
+    # log_reader.connect(log_writer)
+    # # log_filter.connect(log_writer)
+    # log_writer.init_stream()
+    # log_reader.main()
 
 
     # # log_reader = LogReaderBaseVector('upp', '//office-sql/logz_all/all/rphost_8940/21082315.log')
@@ -34,7 +36,7 @@ def main():
 
 
 
-    # log_reader = LogReaderBase('bill', '//app-bill-nord/logz_full/Logs_full')
+    # log_reader = LogReaderStream('bill', '//app-bill-nord/logz_full/Logs_full')
     # log_reader = LogReaderBase('test', '//onyx-1c-ppo2/Logz/PPO_Store_FULL')
     # log_reader = LogReaderStream('test', 'logs', 'settings.json')
     # log_reader = LogReaderStream('bill', 'logs/Logs_full/rphost_4180/', 'settings.json')
@@ -55,14 +57,20 @@ def main():
     # log_filter.connect(log_writer_console)
     
     # log_reader = LogReaderStream('bill', '//app-bill-nord/logz_full/Logs_full', 'settings.json')
-    # log_writer_by_minute = LogWriteToCatalogByMinute('write_by_minute', 'logs_test/bill/by_minute')
-    # log_writer_by_minute.add_data = False
-    # log_writer_by_minute.append_to_file = True
-    # log_reader.connect(log_writer_by_minute)
+    log_reader = LogReaderBaseVector('bill_test', 'logs_test/bill/main')
+    log_reader.set_time(datetime(2021, 8, 27, 14, 30, 0, 0), datetime(2021, 8, 27, 14, 40,  0, 0))
+    log_writer_by_minute = LogWriteToCatalogByField('write_by_minute', 'logs_test/bill/by_minute')
+    log_writer_by_minute.add_data = False
+    log_writer_by_minute.append_to_file = True
+    # log_writer_by_minute.field_name = 'SessionID'
+    log_writer_by_minute.by_minute = True
+    
+    
+    log_reader.connect(log_writer_by_minute)
 
-    # # log_reader.init_stream(datetime.now() - timedelta(seconds=10))
-    # # log_writer_by_minute.init_stream()
-    # log_reader.main()
+    # log_reader.init_stream(datetime.now() - timedelta(seconds=10))
+    log_writer_by_minute.init_stream()
+    log_reader.main()
     pass
 
 if __name__ == '__main__':
@@ -76,7 +84,7 @@ if __name__ == '__main__':
         main()
 
         profiler.disable()
-        stats = pstats.Stats(profiler).sort_stats('tottime')
-        stats.print_stats(10)
+        stats = pstats.Stats(profiler).sort_stats('cumtime')
+        stats.print_stats()
     else:
         main()
