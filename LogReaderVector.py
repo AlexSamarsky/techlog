@@ -259,9 +259,9 @@ class LogReaderBaseVector(LogBase):
         event_process_object.tech_log_event.event_len = event_len
 
 
-        match_begin = RePatterns.re_new_event.match(event_process_object.text, pos=event_process_object.current_pos)
-        if not match_begin and event_process_object.len_text - event_process_object.current_pos > 30:
-            cnterror = 1
+        # match_begin = RePatterns.re_new_event.match(event_process_object.text, pos=event_process_object.current_pos)
+        # if not match_begin and event_process_object.len_text - event_process_object.current_pos > 30:
+        #     cnterror = 1
 
 
         # file_object.raw_position = event_process_object.tech_log_event.event.file_pos + self.calc_line_len(event_process_object.tech_log_event.text)

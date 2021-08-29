@@ -2,20 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from io import TextIOWrapper
 import re
-from typing import Iterator, Match
-
-@dataclass
-class TechLogFile:
-    full_path: str
-    file_name: str = ''
-    raw_position: int = -1
-    rel_path: str = ''
-    file_io: TextIOWrapper = None
-    stem: str = ''
-    init_path: str = ''
-    skip_file: bool = False
-    date_hour_str: str = ''
-    date_hour: datetime = None
+from typing import Iterator, List, Match
 
 @dataclass()
 class RawLogProps:
@@ -110,3 +97,19 @@ class EventsProcessObject:
     event_previous: TechLogEvent = None
     tech_log_event: TechLogEvent = None
     f = None
+
+
+@dataclass
+class TechLogFile:
+    full_path: str
+    file_name: str = ''
+    raw_position: int = -1
+    rel_path: str = ''
+    file_io: TextIOWrapper = None
+    stem: str = ''
+    init_path: str = ''
+    skip_file: bool = False
+    date_hour_str: str = ''
+    date_hour: datetime = None
+    event_process_object: EventsProcessObject = None
+    files_array: List(str) = None

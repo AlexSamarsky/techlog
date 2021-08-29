@@ -102,7 +102,10 @@ class LogWriteToFile(LogWriteToConsole):
     def init_stream(self):
         if not self._path_file_name:
             return
-        # p = Path(self._files_path)
+        p = Path(self._path_file_name)
+        if not p.exists() and not p.suffix:
+            p.mkdir(exist_ok=True)
+
         for files in os.listdir(self._path_file_name):
             path = os.path.join(self._path_file_name, files)
             try:
@@ -165,8 +168,17 @@ class LogWriteToCatalogByField(LogWriteToFile):
         self._append_to_file: str = 'w'
         self._by_minute = False
         self._field_name = None
-        self.file_name = file_name
+        self._file_name = file_name
         self._time_str_len = 8
+        self._field_as_file = False
+
+    @property
+    def field_as_file(self) -> bool:
+        return self._field_as_file
+
+    @field_as_file.setter
+    def field_as_file(self, field_as_file: bool) -> None:
+        self._field_as_file = field_as_file
 
     @property
     def file_name(self) -> str:
@@ -207,10 +219,10 @@ class LogWriteToCatalogByField(LogWriteToFile):
             self._time_str_len = 8
 
     @lru_cache(maxsize=None)
-    def get_file_name(self, time_str: str, rel_path: str, field_value: str) -> str:
-        time_hour = time_str
+    def get_file_name(self, file_name: str, rel_path: str = '', field_value: str = '') -> str:
+        file_name = file_name
 
-        file_name = f'{time_hour}.log'
+        file_name = f'{file_name}.log'
         full_path = self._path_file_name.replace('/', os.path.sep)
         if field_value:
             full_path = full_path.rstrip(os.path.sep) + os.path.sep + field_value
@@ -232,14 +244,18 @@ class LogWriteToCatalogByField(LogWriteToFile):
                 if not field_search:
                     field_value = 'etc'
                 else:
-                    field_value = field_search.group(0)
+                    field_value = field_search.group(1)
             else:
                 field_value = None
             
-            full_path = self.get_file_name(log_event.event.time_str[:self._time_str_len], log_event.event.file.rel_path, field_value)
+            if self._field_as_file:
+                field_value += '.log'
+                full_path = self.get_file_name(field_value)
+            else:
+                full_path = self.get_file_name(log_event.event.time_str[:self._time_str_len], log_event.event.file.rel_path, field_value)
         return full_path
 
-    def execute_end(self):
-        super().execute_end()
-        print(self.get_file_name.cache_info())
+    # def execute_end(self):
+    #     super().execute_end()
+        # print(self.get_file_name.cache_info())
 

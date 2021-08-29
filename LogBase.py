@@ -111,6 +111,14 @@ class LogBase():
         for h in self._handlers:
             h.execute_init_handlers()
 
+    def execute_close_file(self) -> None:
+        pass
+
+    def execute_close_handlers(self) -> None:
+        self.execute_close_file
+        for h in self._handlers:
+            h.execute_close_handlers()
+
     def seek_files(self) -> List[TechLogFile]:
         if not self._files_path:
             return
