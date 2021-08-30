@@ -5,7 +5,7 @@ import os
 import re
 from typing import List
 from LogBase import LogBase
-from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TimePatterns, RePatterns
+from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TechLogWriteFile, TimePatterns, RePatterns
 from pathlib import Path
 from Timer import MicroTimer
 import multiprocessing as mp
@@ -58,7 +58,7 @@ class LogWriteToFile(LogWriteToConsole):
 
     def execute_begin(self) -> None:
         super().execute_begin()
-        self._files_list: List[TechLogFile] = []
+        self._files_list: List[TechLogWriteFile] = []
         self._lock = mp.Lock()
         # self._writer = open(self._path_file_name,  self._append_to_file, encoding=self._encoding)
 
@@ -80,12 +80,13 @@ class LogWriteToFile(LogWriteToConsole):
                 time.sleep(0.1)
                 p.parent.mkdir(parents=True, exist_ok=True)
         file_io = open(full_path, self._append_to_file, encoding=self._encoding)
-        search_cache = TechLogFile(
+        write_file = TechLogWriteFile(
             full_path = full_path,
             file_io = file_io,
+            tech_log_file = None
         )
-        self._files_list.append(search_cache)
-        return file_io
+        self._files_list.append(write_file)
+        return write_file
 
     def get_file_name_from_log_event(self, log_event: TechLogEvent) -> None:
         full_path = self._path_file_name
@@ -93,11 +94,14 @@ class LogWriteToFile(LogWriteToConsole):
 
     def main_process(self, process_path: str, log_event: TechLogEvent) -> None:
         # self._lock.acquire()
-        full_path = self.get_file_name_from_log_event(log_event)
-        file_io = self.get_file_io(full_path)
+        full_path: str = self.get_file_name_from_log_event(log_event)
+        if not full_path:
+            return
+        write_file: TechLogWriteFile = self.get_file_io(full_path)
+        write_file.tech_log_file = log_event.event.file
         # self._lock.release()
         # file_io.write(log_event.text.rstrip('\n').rstrip('\r')+self.generate_data(process_path,log_event)+'\n')
-        file_io.write(log_event.text)
+        write_file.file_io.write(log_event.text)
 
     def init_stream(self):
         if not self._path_file_name:
@@ -168,9 +172,11 @@ class LogWriteToCatalogByField(LogWriteToFile):
         self._append_to_file: str = 'w'
         self._by_minute = False
         self._field_name = None
-        self._file_name = file_name
         self._time_str_len = 8
         self._field_as_file = False
+        self._single_file = False
+
+        self.file_name = file_name
 
     @property
     def field_as_file(self) -> bool:
@@ -242,18 +248,29 @@ class LogWriteToCatalogByField(LogWriteToFile):
             if self._pattern_field:
                 field_search = self._pattern_field.search(log_event.text)
                 if not field_search:
+                    if self._field_as_file:
+                        return ''
                     field_value = 'etc'
                 else:
-                    field_value = field_search.group(1)
+                    field_value = field_search.group(0)
+                field_value = field_value.replace(':', '_')
             else:
                 field_value = None
             
             if self._field_as_file:
-                field_value += '.log'
+                # field_value += '.log'
                 full_path = self.get_file_name(field_value)
             else:
                 full_path = self.get_file_name(log_event.event.time_str[:self._time_str_len], log_event.event.file.rel_path, field_value)
         return full_path
+
+    def execute_end_process_file(self, file_object: TechLogFile) -> None:
+
+        for tech_log_write_file in self._files_list:
+            if tech_log_write_file.tech_log_file == file_object:
+                tech_log_write_file.file_io.close()
+                # pass
+        self._files_list = list(filter(lambda x: x.tech_log_file != file_object, self._files_list))
 
     # def execute_end(self):
     #     super().execute_end()

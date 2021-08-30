@@ -47,9 +47,9 @@ class LogFilterByEventName(LogBase):
     
     def __init__(self, name: str, field_values: List[str]) -> None:
         super().__init__(name)
-        if isinstance(field_values) == str:
+        if isinstance(field_values, str):
             self._field_values = [field_values]
-        elif isinstance(field_values) == List:
+        elif isinstance(field_values, List):
             self._field_values = field_values
 
     def main_process(self, process_path: str, log_event: TechLogEvent) -> None:

@@ -4,29 +4,6 @@ from io import TextIOWrapper
 import re
 from typing import Iterator, List, Match
 
-@dataclass()
-class RawLogProps:
-    file: TechLogFile
-    file_pos: int
-    duration: int
-    name: str
-    level: int
-    time_str: str = ''
-    time: datetime = None
-
-@dataclass()
-class LogEvent:
-    text: str
-    event_len: int
-    event: RawLogProps
-   
-@dataclass()
-class TechLogEvent(LogEvent):
-    rphost: int = 0
- 
-@dataclass
-class LogObject:
-    event: TechLogEvent
 
 @dataclass
 class TechLogPeriod:
@@ -83,21 +60,6 @@ class TimePatterns:
     format_date_hour: str = "%y%m%d%H"
     format_time_minute: str = "%y%m%d%H%M"
 
-@dataclass
-class EventsProcessObject:
-    skip_group: bool = False
-    process_path: str = ''
-    len_arr: int = 0
-    text: str = ''
-    len_text:int = 0
-    event_iter: Iterator[Match] = None
-    current_pos: int = 0
-    current_pos_bytes: int = 0
-    event_count: int = 0
-    event_previous: TechLogEvent = None
-    tech_log_event: TechLogEvent = None
-    f = None
-
 
 @dataclass
 class TechLogFile:
@@ -111,5 +73,56 @@ class TechLogFile:
     skip_file: bool = False
     date_hour_str: str = ''
     date_hour: datetime = None
-    event_process_object: EventsProcessObject = None
-    files_array: List(str) = None
+    # event_process_object: EventsProcessObject = None
+    # files_array: List(TechLogWriteFile) = None
+
+
+@dataclass
+class TechLogWriteFile:
+    full_path: str
+    file_io: TextIOWrapper
+    tech_log_file: TechLogFile
+
+
+@dataclass()
+class RawLogProps:
+    file: TechLogFile
+    file_pos: int
+    duration: int
+    name: str
+    level: int
+    time_str: str = ''
+    time: datetime = None
+
+
+@dataclass()
+class LogEvent:
+    text: str
+    event_len: int
+    event: RawLogProps
+
+
+@dataclass()
+class TechLogEvent(LogEvent):
+    rphost: int = 0
+
+
+@dataclass
+class LogObject:
+    event: TechLogEvent
+
+
+@dataclass
+class EventsProcessObject:
+    skip_group: bool = False
+    process_path: str = ''
+    len_arr: int = 0
+    text: str = ''
+    len_text:int = 0
+    # event_iter: Iterator[Match] = None
+    current_pos: int = 0
+    # current_pos_bytes: int = 0
+    event_count: int = 0
+    # event_previous: TechLogEvent = None
+    tech_log_event: TechLogEvent = None
+    # f = None

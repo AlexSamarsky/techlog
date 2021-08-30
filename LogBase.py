@@ -19,6 +19,7 @@ class LogBase():
         self._tech_log_period: TechLogPeriod = TechLogPeriod()
         self._encoding: str = "utf-8-sig"
         self._parent = None
+        self._path_to_files: str = ''
         
     @property
     def path(self) -> str:
@@ -111,13 +112,13 @@ class LogBase():
         for h in self._handlers:
             h.execute_init_handlers()
 
-    def execute_close_file(self) -> None:
+    def execute_end_process_file(self, file_object: TechLogFile) -> None:
         pass
 
-    def execute_close_handlers(self) -> None:
-        self.execute_close_file
+    def execute_end_process_file_handlers(self, file_object: TechLogFile) -> None:
+        self.execute_end_process_file(file_object)
         for h in self._handlers:
-            h.execute_close_handlers()
+            h.execute_end_process_file_handlers(file_object)
 
     def seek_files(self) -> List[TechLogFile]:
         if not self._files_path:

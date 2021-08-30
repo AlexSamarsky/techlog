@@ -2,7 +2,7 @@ from LogReaderVector import LogReaderBaseVector
 from datetime import datetime, timedelta
 
 from LogWrite import LogWriteToCatalogByField, LogWriteToConsole, LogWriteToFile
-from LogFilter import LogFilterPattern
+from LogFilter import LogFilterByEventName, LogFilterPattern
 from LogReader import LogReaderBase, LogReaderStream
 
 profile = True
@@ -58,15 +58,30 @@ def main():
     
     # log_reader = LogReaderStream('bill', '//app-bill-nord/logz_full/Logs_full', 'settings.json')
     log_reader = LogReaderBaseVector('bill_test', 'logs_test/bill/main')
-    log_reader.set_time(datetime(2021, 8, 27, 14, 30, 0, 0), datetime(2021, 8, 27, 14, 40,  0, 0))
+    log_reader.set_time(datetime(2021, 8, 27, 14, 0, 0, 0), datetime(2021, 8, 27, 14, 1,  0, 0))
+
+    web_arr = ['VRSREQUEST', 'VRSRESPONSE']
+    log_filter = LogFilterByEventName('web', web_arr)
+
     log_writer_by_minute = LogWriteToCatalogByField('write_by_minute', 'logs_test/bill/by_minute')
     log_writer_by_minute.add_data = False
-    log_writer_by_minute.append_to_file = True
+    log_writer_by_minute.append_to_file = False
+    # log_writer_by_minute.field_as_file = True
+    log_writer_by_minute.field_name = 't:connectID'
+
+
+    log_writer_events = LogWriteToCatalogByField('write_event', 'logs_test/bill/events')
+    log_writer_events.add_data = False
+    log_writer_events.append_to_file = False
+    log_writer_events.field_as_file = True
+    log_writer_events.field_name = 't:connectID'
+
     # log_writer_by_minute.field_name = 'SessionID'
-    log_writer_by_minute.by_minute = True
-    
-    
+    # log_writer_by_minute.by_minute = True
     log_reader.connect(log_writer_by_minute)
+
+    log_reader.connect(log_filter)
+    log_filter.connect(log_writer_events)
 
     # log_reader.init_stream(datetime.now() - timedelta(seconds=10))
     log_writer_by_minute.init_stream()
@@ -84,7 +99,7 @@ if __name__ == '__main__':
         main()
 
         profiler.disable()
-        stats = pstats.Stats(profiler).sort_stats('cumtime')
-        stats.print_stats()
+        stats = pstats.Stats(profiler).sort_stats('tottime')
+        stats.print_stats(10)
     else:
         main()

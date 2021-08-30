@@ -15,9 +15,9 @@ from LogDataclasses import EventsProcessObject, TechLogEvent, TechLogFile, RawLo
 
 class LogReaderBaseVector(LogBase):
     
-    def __init__(self, name: str, files_path: str) -> None:
+    def __init__(self, name: str, path_to_files: str) -> None:
         super().__init__(name)
-        self._files_path: str = files_path
+        self._path_to_files: str = path_to_files
         self._files_array: List[TechLogFile] = []
         self._raw_data: bool = True
         self._cnt_on = False
@@ -33,9 +33,9 @@ class LogReaderBaseVector(LogBase):
         self._raw_data = raw_data
 
     def seek_files(self) -> List[TechLogFile]:
-        if not self._files_path:
+        if not self._path_to_files:
             return
-        path_or_file: str = self._files_path
+        path_or_file: str = self._path_to_files
         self._files_array: List[TechLogFile] = []
         
         try:
@@ -221,6 +221,10 @@ class LogReaderBaseVector(LogBase):
         # event_process_object.skip_group = True
 
         minutes = next_match.group(1)
+        if len(minutes) == 10:
+            file_object.date_hour_str = minutes[:8]
+            file_object.date_hour = datetime.strptime(file_object.date_hour_str, TimePatterns.format_date_hour)
+            minutes = minutes[8:10]
         seconds = next_match.group(2)
         microseconds = next_match.group(3)
         if len(microseconds) == 4:
@@ -323,7 +327,7 @@ class LogReaderBaseVector(LogBase):
 
             event_process_object.tech_log_event = tech_log_event
             event_process_object.f = f
-            event_process_object.current_pos_bytes = 0
+            # event_process_object.current_pos_bytes = 0
             prev_position = 0
             arr100 = np.r_[0:1200:1]
             cnt_vectorize = 0
@@ -377,3 +381,4 @@ class LogReaderBaseVector(LogBase):
             
             print(f'END   {Style.BRIGHT}{Fore.YELLOW}{datetime.now()}{Fore.RESET} / {Fore.GREEN}{mp.current_process().name}{Fore.RESET} / {Fore.MAGENTA}{file_object.full_path}{Style.RESET_ALL} / {cnt_vectorize}')
 
+        self.execute_end_process_file_handlers(file_object)
