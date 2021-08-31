@@ -361,9 +361,12 @@ class LogReaderStream(LogReaderBaseVector):
         self._cache_len_minute = minute
 
     def execute_begin(self) -> None:
-        with open(self._settings_path) as f:
-            self._settings: Any = json.load(f)
-        if not self._settings:
+        try:
+            with open(self._settings_path) as f:
+                self._settings: Any = json.load(f)
+            if not self._settings:
+                self._settings = {}
+        except:
             self._settings = {}
         # self._settings = {}
         

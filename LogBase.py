@@ -120,6 +120,14 @@ class LogBase():
         for h in self._handlers:
             h.execute_end_process_file_handlers(file_object)
 
+    def execute_begin_process_file(self, file_object: TechLogFile) -> None:
+        pass
+
+    def execute_begin_process_file_handlers(self, file_object: TechLogFile) -> None:
+        self.execute_begin_process_file(file_object)
+        for h in self._handlers:
+            h.execute_begin_process_file_handlers(file_object)
+
     def seek_files(self) -> List[TechLogFile]:
         if not self._files_path:
             return

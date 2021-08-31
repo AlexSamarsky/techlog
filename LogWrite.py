@@ -43,6 +43,17 @@ class LogWriteToFile(LogWriteToConsole):
         super().__init__(name)
         self._path_file_name: str = file_name
         self._append_to_file: str = 'w'
+        
+        self.concat_time = False
+
+    @property
+    def concat_time(self):
+        return self._concat_time
+    
+    @concat_time.setter
+    def concat_time(self, concat: bool) -> None:
+        self._concat_time = concat
+
     
     @property
     def append_to_file(self):
@@ -99,9 +110,15 @@ class LogWriteToFile(LogWriteToConsole):
             return
         write_file: TechLogWriteFile = self.get_file_io(full_path)
         write_file.tech_log_file = log_event.event.file
+        if write_file.file_io.closed:
+            write_file.file_io.open(write_file.full_path, 'a', encoding=self._encoding)
         # self._lock.release()
         # file_io.write(log_event.text.rstrip('\n').rstrip('\r')+self.generate_data(process_path,log_event)+'\n')
-        write_file.file_io.write(log_event.text)
+        # write_file.file_io.write(log_event.text)
+        if self._concat_time:
+            write_file.file_io.write(log_event.event.time_str[:8] + log_event.text.replace('\r', ''))
+        else:
+            write_file.file_io.write(log_event.text.replace('\r', ''))
 
     def init_stream(self):
         if not self._path_file_name:

@@ -259,6 +259,7 @@ class LogReaderBaseVector(LogBase):
         event_process_object.tech_log_event.event.name = next_match.group(5)
         event_process_object.tech_log_event.event.level = next_match.group(6)
         event_process_object.tech_log_event.event.time_str = event_time_str
+        event_process_object.tech_log_event.event.time = event_time
         event_process_object.tech_log_event.text = event_line
         event_process_object.tech_log_event.event_len = event_len
 
@@ -300,9 +301,9 @@ class LogReaderBaseVector(LogBase):
                 if match_rphost:
                     rphost: int = match_rphost.groups()[0]
             
-            file_object.skip_file = False
-            file_object.date_hour_str = date_hour[:8]
-            file_object.date_hour = datetime.strptime(date_hour[:8], TimePatterns.format_date_hour)
+                file_object.skip_file = False
+                file_object.date_hour_str = date_hour[:8]
+                file_object.date_hour = datetime.strptime(date_hour[:8], TimePatterns.format_date_hour)
             size_read = 1_000_000
             event_process_object.text = ''
             

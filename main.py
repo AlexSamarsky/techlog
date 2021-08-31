@@ -1,8 +1,9 @@
+from LogEventAnalyze import LogEventAnalyze
 from LogReaderVector import LogReaderBaseVector
 from datetime import datetime, timedelta
 
 from LogWrite import LogWriteToCatalogByField, LogWriteToConsole, LogWriteToFile
-from LogFilter import LogFilterByEventName, LogFilterPattern
+from LogFilter import LogFilterByEventName, LogFilterDuration, LogFilterPattern
 from LogReader import LogReaderBase, LogReaderStream
 
 profile = True
@@ -56,6 +57,7 @@ def main():
     # log_reader.connect(log_filter)
     # log_filter.connect(log_writer_console)
     
+    # Загрузка из биллинга
     # log_reader = LogReaderStream('bill', '//app-bill-nord/logz_full/Logs_full', 'settings.json')
     log_reader = LogReaderBaseVector('bill_test', 'logs_test/bill/main')
     log_reader.set_time(datetime(2021, 8, 27, 14, 0, 0, 0), datetime(2021, 8, 27, 14, 1,  0, 0))
@@ -65,7 +67,7 @@ def main():
 
     log_writer_by_minute = LogWriteToCatalogByField('write_by_minute', 'logs_test/bill/by_minute')
     log_writer_by_minute.add_data = False
-    log_writer_by_minute.append_to_file = False
+    log_writer_by_minute.append_to_file = True
     # log_writer_by_minute.field_as_file = True
     log_writer_by_minute.field_name = 't:connectID'
 
@@ -74,6 +76,7 @@ def main():
     log_writer_events.add_data = False
     log_writer_events.append_to_file = False
     log_writer_events.field_as_file = True
+    log_writer_events.concat_time = True
     log_writer_events.field_name = 't:connectID'
 
     # log_writer_by_minute.field_name = 'SessionID'
@@ -85,7 +88,24 @@ def main():
 
     # log_reader.init_stream(datetime.now() - timedelta(seconds=10))
     log_writer_by_minute.init_stream()
+    log_writer_by_minute.init_stream()
     log_reader.main()
+
+    # все что связано с подсчетом длительности операций
+    # log_reader_events = LogReaderStream('web_events', 'logs_test/bill/events', 'logs_test/bill/s_events.json')
+    log_reader_events = LogReaderBaseVector('web_events', 'logs_test/bill/events/t_connectID=30830.log')
+    log_reader_events.raw_data = False
+    log_event_analyze = LogEventAnalyze('analyze', 'VRSREQUEST', 'VRSRESPONSE')
+
+    log_filter_duration = LogFilterDuration('more_sec', 1_000_00)
+
+    log_write_event = LogWriteToFile('write_to_file', 'logs_test/bill/t.log')
+
+    log_reader_events.connect(log_event_analyze)
+    log_event_analyze.connect(log_filter_duration)
+    log_filter_duration.connect(log_write_event)
+    log_reader_events.main()
+
     pass
 
 if __name__ == '__main__':

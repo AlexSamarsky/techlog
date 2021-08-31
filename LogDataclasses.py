@@ -50,7 +50,7 @@ class RePatterns:
     re_new_event_line = re.compile(r"^(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),")
 
 
-    re_new_event_findall = re.compile(r"(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2}:\d{2}\.\d{4,6}))", flags=re.MULTILINE | re.S)
+    re_new_event_findall = re.compile(r"(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2,10}:\d{2}\.\d{4,6}))", flags=re.MULTILINE | re.S)
     re_new_event_findall_last = re.compile(r"(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+", flags=re.MULTILINE | re.S)
 
 
@@ -59,6 +59,17 @@ class TimePatterns:
     format_time_full: str = "%y%m%d%H%M%S%f"
     format_date_hour: str = "%y%m%d%H"
     format_time_minute: str = "%y%m%d%H%M"
+
+
+@dataclass
+class EventProcessAnalyze:
+    name: str
+    obj: object = None
+    start_event: str = ''
+    start_time: datetime = None
+    end_time: datetime = None
+    duration: int = None
+    start_event_file_pos: int = None
 
 
 @dataclass
@@ -73,6 +84,7 @@ class TechLogFile:
     skip_file: bool = False
     date_hour_str: str = ''
     date_hour: datetime = None
+    # file_process_object: FileProcessObject = None
     # event_process_object: EventsProcessObject = None
     # files_array: List(TechLogWriteFile) = None
 
