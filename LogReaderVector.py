@@ -11,7 +11,7 @@ import numpy as np
 import multiprocessing as mp
 
 from LogBase import LogBase
-from LogDataclasses import EventsProcessObject, TechLogEvent, TechLogFile, RawLogProps, TimePatterns, RePatterns
+from LogDataclasses import EventsProcessObject, TechLogEvent, TechLogFile, TimePatterns, RePatterns
 
 class LogReaderBaseVector(LogBase):
     
@@ -255,11 +255,11 @@ class LogReaderBaseVector(LogBase):
         duration = next_match.group(4)
         if len(duration) == 4:
             duration += '00'
-        event_process_object.tech_log_event.event.duration = int(duration)
-        event_process_object.tech_log_event.event.name = next_match.group(5)
-        event_process_object.tech_log_event.event.level = next_match.group(6)
-        event_process_object.tech_log_event.event.time_str = event_time_str
-        event_process_object.tech_log_event.event.time = event_time
+        event_process_object.tech_log_event.duration = int(duration)
+        event_process_object.tech_log_event.name = next_match.group(5)
+        event_process_object.tech_log_event.level = next_match.group(6)
+        event_process_object.tech_log_event.time_str = event_time_str
+        event_process_object.tech_log_event.time = event_time
         event_process_object.tech_log_event.text = event_line
         event_process_object.tech_log_event.event_len = event_len
 
@@ -295,35 +295,37 @@ class LogReaderBaseVector(LogBase):
                 file_position: int = self.seek_position(file_object.full_path)
                 f.seek(file_position)
 
+            rphost = None
             if self._raw_data:
                 catalog: str = file_path.parts[-2]
                 match_rphost = RePatterns.re_rphost.match(catalog)
                 if match_rphost:
-                    rphost: int = match_rphost.groups()[0]
+                    rphost: int = match_rphost.group(0)
             
                 file_object.skip_file = False
                 file_object.date_hour_str = date_hour[:8]
                 file_object.date_hour = datetime.strptime(date_hour[:8], TimePatterns.format_date_hour)
+            
             size_read = 1_000_000
             event_process_object.text = ''
             
+            file_object.stem = p.stem
             file_object.raw_position = f.tell()
             cnt_reads = floor(p.stat().st_size / size_read) + 2
             vec_event_process2 = np.vectorize(self.event_process2)
             
-            raw_log_event = RawLogProps(
+            tech_log_event = TechLogEvent(
                                 time=datetime.now(),
                                 file=file_object,
                                 file_pos=0,
                                 duration=0,
                                 name='',
                                 level='',
-                                time_str=''
-                                )
-            tech_log_event = TechLogEvent(
+                                time_str='',
                                 text='', 
-                                event=raw_log_event,
+                                # event=raw_log_event,
                                 event_len=0,
+                                rphost=rphost
                                 )
 
             event_process_object.tech_log_event = tech_log_event

@@ -5,7 +5,7 @@ import os
 import re
 from typing import List
 from LogBase import LogBase
-from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TechLogWriteFile, TimePatterns, RePatterns
+from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, TechLogWriteFile, TimePatterns, RePatterns
 from pathlib import Path
 from Timer import MicroTimer
 import multiprocessing as mp
@@ -27,14 +27,14 @@ class LogWriteToConsole(LogBase):
     
     def generate_data(self, process_path: str, log_event: TechLogEvent):
         if self._add_data:
-            return f',tla:processPath={process_path},tla:fullPath={log_event.event.file.full_path},tla:filePos={log_event.event.file_pos}'
+            return f',tla:processPath={process_path}'
         return ''
 
     def main_process(self, process_path: str, log_event: TechLogEvent):
         if log_event.text[-1] == '\n':
-            print(log_event.event.time.strftime(TimePatterns.format_date_hour)+log_event.text.strip('\n')+self.generate_data(process_path,log_event))
+            print(log_event.time.strftime(TimePatterns.format_date_hour)+log_event.text.strip('\n')+self.generate_data(process_path,log_event))
         else:
-            print(log_event.event.time.strftime(TimePatterns.format_date_hour)+log_event.text+self.generate_data(process_path,log_event))
+            print(log_event.time.strftime(TimePatterns.format_date_hour)+log_event.text+self.generate_data(process_path,log_event))
 
 
 class LogWriteToFile(LogWriteToConsole):
@@ -109,16 +109,19 @@ class LogWriteToFile(LogWriteToConsole):
         if not full_path:
             return
         write_file: TechLogWriteFile = self.get_file_io(full_path)
-        write_file.tech_log_file = log_event.event.file
+        write_file.tech_log_file = log_event.file
         if write_file.file_io.closed:
             write_file.file_io.open(write_file.full_path, 'a', encoding=self._encoding)
         # self._lock.release()
         # file_io.write(log_event.text.rstrip('\n').rstrip('\r')+self.generate_data(process_path,log_event)+'\n')
         # write_file.file_io.write(log_event.text)
         if self._concat_time:
-            write_file.file_io.write(log_event.event.time_str[:8] + log_event.text.replace('\r', ''))
+            text = log_event.time_str[:8] + log_event.text.replace('\r', '')
         else:
-            write_file.file_io.write(log_event.text.replace('\r', ''))
+            text = log_event.text.replace('\r', '')
+        text = text.strip('\n')+self.generate_data(process_path,log_event)+'\n'
+
+        write_file.file_io.write(text)
 
     def init_stream(self):
         if not self._path_file_name:
@@ -270,7 +273,7 @@ class LogWriteToCatalogByField(LogWriteToFile):
                     field_value = 'etc'
                 else:
                     field_value = field_search.group(0)
-                field_value = field_value.replace(':', '_')
+                field_value = field_value.replace(':', '_').replace('=', '_')
             else:
                 field_value = None
             
@@ -278,7 +281,7 @@ class LogWriteToCatalogByField(LogWriteToFile):
                 # field_value += '.log'
                 full_path = self.get_file_name(field_value)
             else:
-                full_path = self.get_file_name(log_event.event.time_str[:self._time_str_len], log_event.event.file.rel_path, field_value)
+                full_path = self.get_file_name(log_event.time_str[:self._time_str_len], log_event.file.rel_path, field_value)
         return full_path
 
     def execute_end_process_file(self, file_object: TechLogFile) -> None:

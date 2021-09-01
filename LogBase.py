@@ -6,7 +6,7 @@ from datetime import datetime
 from math import floor
 from Timer import Timer
 
-from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, RawLogProps, TimePatterns, RePatterns
+from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, TimePatterns, RePatterns
 
 class LogBase():
     
@@ -20,7 +20,20 @@ class LogBase():
         self._encoding: str = "utf-8-sig"
         self._parent = None
         self._path_to_files: str = ''
-        
+    
+    def __str__(self) -> str:
+        return
+    
+    def get_str(self, level=0) -> str:
+        # if level==0:
+        #     s = ''
+        # else:
+        #     s = '\n'
+        s = '- '*level + self.__class__.__name__ + '/' + self._name
+        for handler in self._handlers:
+            s += '\n' + handler.get_str(level+1)
+        return s
+    
     @property
     def path(self) -> str:
         return self._path
@@ -96,7 +109,7 @@ class LogBase():
 
     def execute_handlers(self, process_path: str, event_object: TechLogEvent) -> None:
         for h in self._handlers:
-            h.main_process(process_path + '/' + h.name, event_object)        
+            h.main_process(process_path + '_$_' + h.name, event_object)        
     
     def process(self) -> bool:
         return True

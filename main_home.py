@@ -3,7 +3,7 @@ from datetime import datetime
 
 from LogWrite import LogWriteToCatalogByField, LogWriteToConsole, LogWriteToFile
 from LogFilter import LogFilterPattern
-from LogReader import LogReaderBase, LogReaderStream
+from LogReader import LogReaderStream
 
 profile = True
 

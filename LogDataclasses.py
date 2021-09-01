@@ -40,6 +40,9 @@ class TechLogPeriod:
     
 class RePatterns:
     re_rphost = re.compile(r'rphost_([\d]+)')
+    
+    all_props = re.compile(r',([^,=\s]+)=([^,\'\"]+|\'[^\']+\'|\"[^\"]+\")', flags=re.MULTILINE | re.S)
+    
     re_new_event = re.compile(r"^(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),", flags=re.MULTILINE)
     re_new_event_sub = re.compile(r"^(\d{2,10}:\d{2}\.\d{4,6}-\d+,\w+,\d+,)", flags=re.MULTILINE)
     # re_new_event_findall = re.compile(r"((\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2}:\d{2}.\d{4,6})|\Z))", flags=re.MULTILINE | re.S)
@@ -50,7 +53,7 @@ class RePatterns:
     re_new_event_line = re.compile(r"^(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),")
 
 
-    re_new_event_findall = re.compile(r"(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2,10}:\d{2}\.\d{4,6}))", flags=re.MULTILINE | re.S)
+    re_new_event_findall = re.compile(r"(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:(?=\d{2,10}:\d{2}\.\d{4,6}-))", flags=re.MULTILINE | re.S)
     re_new_event_findall_last = re.compile(r"(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+", flags=re.MULTILINE | re.S)
 
 
@@ -59,17 +62,6 @@ class TimePatterns:
     format_time_full: str = "%y%m%d%H%M%S%f"
     format_date_hour: str = "%y%m%d%H"
     format_time_minute: str = "%y%m%d%H%M"
-
-
-@dataclass
-class EventProcessAnalyze:
-    name: str
-    obj: object = None
-    start_event: str = ''
-    start_time: datetime = None
-    end_time: datetime = None
-    duration: int = None
-    start_event_file_pos: int = None
 
 
 @dataclass
@@ -96,8 +88,14 @@ class TechLogWriteFile:
     tech_log_file: TechLogFile
 
 
+# @dataclass()
+# class RawLogProps:
+
+
 @dataclass()
-class RawLogProps:
+class LogEvent:
+    text: str
+    event_len: int
     file: TechLogFile
     file_pos: int
     duration: int
@@ -108,15 +106,8 @@ class RawLogProps:
 
 
 @dataclass()
-class LogEvent:
-    text: str
-    event_len: int
-    event: RawLogProps
-
-
-@dataclass()
 class TechLogEvent(LogEvent):
-    rphost: int = 0
+    rphost: str = ''
 
 
 @dataclass
@@ -138,3 +129,16 @@ class EventsProcessObject:
     # event_previous: TechLogEvent = None
     tech_log_event: TechLogEvent = None
     # f = None
+
+@dataclass
+class EventProcessAnalyze:
+    name: str
+    obj: object = None
+    start_event: str = ''
+    start_time: datetime = None
+    end_time: datetime = None
+    duration: int = None
+    start_event_file_pos: int = None
+    tech_log_event: TechLogEvent = None
+
+
