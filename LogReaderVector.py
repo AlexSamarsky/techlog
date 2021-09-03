@@ -23,7 +23,16 @@ class LogReaderBaseVector(LogBase):
         self._cnt_on = False
         self._multithreading = False
         self._number_proc = 3
+        self._read_count_limit = None
 
+    @property
+    def read_count_limit(self) -> int:
+        return self._read_count_limit
+
+    @read_count_limit.setter
+    def read_count_limit(self, read_count_limit) -> None:
+        self._read_count_limit = read_count_limit
+    
     @property
     def raw_data(self) -> bool:
         return self._raw_data
@@ -207,7 +216,11 @@ class LogReaderBaseVector(LogBase):
         if event_process_object.skip_group:
             return
         
-
+        if self._read_count_limit and self._count >= self._read_count_limit:
+            event_process_object.skip_group = True
+            file_object.skip_file = True
+            return
+        
         if event_process_object.len_arr == 1:
             next_match = RePatterns.re_new_event_findall_last.match(event_process_object.text, pos=event_process_object.current_pos)
         else:
@@ -268,7 +281,7 @@ class LogReaderBaseVector(LogBase):
         # if not match_begin and event_process_object.len_text - event_process_object.current_pos > 30:
         #     cnterror = 1
 
-
+        self._count += 1
         # file_object.raw_position = event_process_object.tech_log_event.event.file_pos + self.calc_line_len(event_process_object.tech_log_event.text)
         self.execute_handlers(event_process_object.process_path, event_process_object.tech_log_event)
 
@@ -282,18 +295,25 @@ class LogReaderBaseVector(LogBase):
         date_hour = time_in_file
         event_process_object = EventsProcessObject(process_path=process_path)
         
+        if not p.exists():
+            return
+        
         with open(file_object.full_path, 'r', encoding=self._encoding, errors='replace', newline='') as f:
         # with open(file_object.full_path, 'rb') as f:
+            
+            self._count = 0
             
             if self._tech_log_period.filter_time and not self.__filter_file(time_in_file):
                 return
             
-            print(f'START {Style.BRIGHT}{Fore.YELLOW}{datetime.now()}{Fore.RESET} / {Fore.GREEN}{mp.current_process().name}{Fore.RESET} / {Fore.MAGENTA}{file_object.full_path}{Style.RESET_ALL}')
             if file_object.raw_position > 0:
+                if file_object.raw_position == p.stat().st_size:
+                    return
                 f.seek(file_object.raw_position)
             elif self._tech_log_period.filter_time and self._raw_data:
                 file_position: int = self.seek_position(file_object.full_path)
                 f.seek(file_position)
+            print(f'START {Style.BRIGHT}{Fore.YELLOW}{datetime.now()}{Fore.RESET} / {Fore.GREEN}{mp.current_process().name}{Fore.RESET} / {Fore.MAGENTA}{file_object.full_path} / {Fore.YELLOW}remain bytes: {"{:,}".format(p.stat().st_size-file_object.raw_position)}{Style.RESET_ALL}')
 
             rphost = None
             if self._raw_data:
@@ -382,6 +402,6 @@ class LogReaderBaseVector(LogBase):
                     # texttt = f.read(1000)
                     break          
             
-            print(f'END   {Style.BRIGHT}{Fore.YELLOW}{datetime.now()}{Fore.RESET} / {Fore.GREEN}{mp.current_process().name}{Fore.RESET} / {Fore.MAGENTA}{file_object.full_path}{Style.RESET_ALL} / {cnt_vectorize}')
+            print(f'END   {Style.BRIGHT}{Fore.YELLOW}{datetime.now()}{Fore.RESET} / {Fore.GREEN}{mp.current_process().name}{Fore.RESET} / {Fore.LIGHTBLUE_EX}{file_object.full_path}{Style.RESET_ALL} / {cnt_vectorize}')
 
         self.execute_end_process_file_handlers(file_object)

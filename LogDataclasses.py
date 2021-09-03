@@ -4,45 +4,11 @@ from io import TextIOWrapper
 import re
 from typing import Iterator, List, Match
 
-
-@dataclass
-class TechLogPeriod:
-    start_time: datetime = None
-    end_time: datetime = None
-
-    start_time_str: str = None
-    end_time_str: str = None
-    filter_time: bool = False
-
-    def __init__(self, start_time: datetime = None, end_time: datetime = None):
-
-        if end_time and start_time and end_time < start_time:
-            raise ValueError('End time can\'t be lower than start time')
-
-        self.start_time = start_time
-        self.end_time = end_time
-    
-        if self.start_time or self.end_time:
-            self.filter_time = True
-            if self.start_time:
-                self.start_time_str = self.start_time.strftime(TimePatterns.format_time_full)
-
-            if self.end_time:
-                self.end_time_str = self.end_time.strftime(TimePatterns.format_time_full)
-            else:
-                self.end_time = datetime(9999, 12, 30)
-                self.end_time_str = '999999999999'
-        else:
-            self.filter_time = False
-            return
-        
-            
-    
 class RePatterns:
     re_rphost = re.compile(r'rphost_([\d]+)')
     
-    all_props = re.compile(r',([^,=\s]+)=([^,\'\"]+|\'[^\']+\'|\"[^\"]+\")', flags=re.MULTILINE | re.S)
-    
+    re_tech_log_props = re.compile(r',([^,=\s]+)=([^,\'\"]+|\'[^\']+\'|\"[^\"]+\")', flags=re.MULTILINE | re.S)
+    re_header_props = re.compile(r'([^,=\s]+):\s(?:(?=(.+)(\n|\Z)))', flags=re.MULTILINE | re.S)
     re_new_event = re.compile(r"^(\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),", flags=re.MULTILINE)
     re_new_event_sub = re.compile(r"^(\d{2,10}:\d{2}\.\d{4,6}-\d+,\w+,\d+,)", flags=re.MULTILINE)
     # re_new_event_findall = re.compile(r"((\d{2,10}):(\d{2})\.(\d{4,6})-(\d+),(\w+),(\d+),.+?(?:^(?=\d{2}:\d{2}.\d{4,6})|\Z))", flags=re.MULTILINE | re.S)
@@ -62,6 +28,44 @@ class TimePatterns:
     format_time_full: str = "%y%m%d%H%M%S%f"
     format_date_hour: str = "%y%m%d%H"
     format_time_minute: str = "%y%m%d%H%M"
+
+
+@dataclass
+class TechLogPeriod:
+    start_time: datetime = None
+    end_time: datetime = None
+
+    start_time_str: str = None
+    end_time_str: str = None
+    filter_time: bool = False
+
+    def __init__(self, start_time: datetime = None, end_time: datetime = None):
+
+        if end_time and start_time and end_time < start_time:
+            raise ValueError('End time can\'t be lower than start time')
+        
+        if isinstance(start_time, str):
+            self.start_time = datetime.strptime(start_time, TimePatterns.format_time_full)
+        else:
+            self.start_time = start_time
+        if isinstance(end_time, str):
+            self.end_time = datetime.strptime(end_time, TimePatterns.format_time_full)
+        else:
+            self.end_time = end_time
+    
+        if self.start_time or self.end_time:
+            self.filter_time = True
+            if self.start_time:
+                self.start_time_str = self.start_time.strftime(TimePatterns.format_time_full)
+
+            if self.end_time:
+                self.end_time_str = self.end_time.strftime(TimePatterns.format_time_full)
+            else:
+                self.end_time = datetime(9999, 12, 30)
+                self.end_time_str = '999999999999'
+        else:
+            self.filter_time = False
+            return
 
 
 @dataclass
@@ -103,6 +107,7 @@ class LogEvent:
     level: int
     time_str: str = ''
     time: datetime = None
+    fields_values: object = None
 
 
 @dataclass()

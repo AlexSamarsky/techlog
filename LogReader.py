@@ -36,6 +36,8 @@ class LogReaderStream(LogReaderBaseVector):
                 self._settings = {}
         except:
             self._settings = {}
+        if not self._tech_log_period:
+            self.set_time(end_time=datetime.now() - timedelta(seconds=1))
         # self._settings = {}
         
     def seek_files(self) -> List[TechLogFile]:
@@ -59,18 +61,20 @@ class LogReaderStream(LogReaderBaseVector):
             json.dump(settings, f)
         pass
 
-    def init_stream(self, start_time: datetime) -> None:
-        self.set_time(start_time=start_time, end_time=None)
+    def init_stream(self, start_time: datetime = None) -> None:
         self._settings = {}
-        self.seek_files()
-        process_path = 'init'
-        if self._files_array:
-            for file_object in self._files_array:
-                if self._tech_log_period.filter_time and self._raw_data and self.filter_time(Path(file_object.full_path).stem) == -1:
-                    file_object.raw_position = Path(file_object.full_path).stat().st_size
-                else:
-                    file_object.raw_position = self.seek_position(file_object.full_path, 0)
-                # tech_log_event = next(self.process_file(process_path, file_object), None)
-                # if tech_log_event == None:
-                    # file_object.raw_position = Path(file_object.full_path).stat().st_size
+        if start_time:
+            self.set_time(start_time=start_time, end_time=None)
+            if self._raw_data:
+                self.seek_files()
+                process_path = 'init'
+                if self._files_array:
+                    for file_object in self._files_array:
+                        if self._tech_log_period.filter_time and self._raw_data and self.filter_time(Path(file_object.full_path).stem) == -1:
+                            file_object.raw_position = Path(file_object.full_path).stat().st_size
+                        else:
+                            file_object.raw_position = self.seek_position(file_object.full_path, 0)
+                        # tech_log_event = next(self.process_file(process_path, file_object), None)
+                        # if tech_log_event == None:
+                            # file_object.raw_position = Path(file_object.full_path).stat().st_size
         self.execute_end()

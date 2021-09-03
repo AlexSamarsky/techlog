@@ -50,7 +50,7 @@ class LogBase():
     def get_time(self) -> TechLogPeriod:
         return self._tech_log_period
     
-    def set_time(self, start_time: datetime, end_time: datetime) -> None:
+    def set_time(self, start_time: datetime = None, end_time: datetime = None) -> None:
         self._tech_log_period = TechLogPeriod(start_time, end_time)
         
     def filter_time(self, event_time: str) -> int:
@@ -77,19 +77,18 @@ class LogBase():
         handler._parent = self
     
     def main(self):
-        timer = Timer('test')
-        timer.start()
+        # timer = Timer('test')
+        # timer.start()
         # self.execute_begin()
         self.execute_begin_handlers()
         self.main_process(self.name)
         # self.execute_end()
         self.execute_end_handlers()
-        timer.stop()
-        print(timer)
+        # timer.stop()
+        # print(timer)
 
-    def main_process(self, process_path: str) -> None:
-        self.execute_handlers(process_path, None)
-        pass
+    def main_process(self, process_path: str, log_event: TechLogEvent = None) -> None:
+        self.execute_handlers(process_path, log_event)
 
     def execute_begin_handlers(self) -> None:
         self.execute_begin()
@@ -107,9 +106,9 @@ class LogBase():
     def execute_end(self) -> None:
         pass
 
-    def execute_handlers(self, process_path: str, event_object: TechLogEvent) -> None:
+    def execute_handlers(self, process_path: str, log_event: TechLogEvent) -> None:
         for h in self._handlers:
-            h.main_process(process_path + '_$_' + h.name, event_object)        
+            h.main_process(process_path + '_$_' + h.name, log_event)        
     
     def process(self) -> bool:
         return True

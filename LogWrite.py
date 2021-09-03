@@ -111,7 +111,9 @@ class LogWriteToFile(LogWriteToConsole):
         write_file: TechLogWriteFile = self.get_file_io(full_path)
         write_file.tech_log_file = log_event.file
         if write_file.file_io.closed:
-            write_file.file_io.open(write_file.full_path, 'a', encoding=self._encoding)
+            # file_name = write_file.file_io.name
+            write_file.file_io = open(write_file.full_path, 'a', encoding=self._encoding)
+            # write_file.file_io.open(write_file.full_path, 'a', encoding=self._encoding)
         # self._lock.release()
         # file_io.write(log_event.text.rstrip('\n').rstrip('\r')+self.generate_data(process_path,log_event)+'\n')
         # write_file.file_io.write(log_event.text)
@@ -128,15 +130,18 @@ class LogWriteToFile(LogWriteToConsole):
             return
         p = Path(self._path_file_name)
         if not p.exists() and not p.suffix:
-            p.mkdir(exist_ok=True)
+            p.mkdir(exist_ok=True, parents=True)
 
-        for files in os.listdir(self._path_file_name):
-            path = os.path.join(self._path_file_name, files)
-            try:
-                shutil.rmtree(path)
-            except OSError:
-                os.remove(path)
-
+        if p.is_dir():
+            for files in os.listdir(self._path_file_name):
+                path = os.path.join(self._path_file_name, files)
+                try:
+                    shutil.rmtree(path)
+                except OSError:
+                    os.remove(path)
+        else:
+            if p.exists():
+                os.remove(p)
 # class LogWriteToCatalogByMinute(LogWriteToFile):
     
 #     def __init__(self, name: str, file_name: str) -> None:

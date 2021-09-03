@@ -43,14 +43,16 @@ class LogFilterByField(LogBase):
             field_value = search.group(1)
             if self._not:
                 if not field_value in self._field_values:
-                    self.execute_handlers(process_path, log_event)
+                    super().main_process(process_path, log_event)
+                    # self.execute_handlers(process_path, log_event)
             else:
                 if field_value in self._field_values:
-                    self.execute_handlers(process_path, log_event)
+                    super().main_process(process_path, log_event)
+                    # self.execute_handlers(process_path, log_event)
 
 class LogFilterByEventName(LogBase):
     
-    def __init__(self, name: str, field_values: List[str]) -> None:
+    def __init__(self, name: str, field_values: List[str], exclude: bool = False) -> None:
         super().__init__(name)
         if isinstance(field_values, str):
             self._field_values = [field_values]
