@@ -22,8 +22,8 @@ class LogReaderBaseVector(LogBase):
         self._raw_data: bool = True
         self._cnt_on = False
         self._multithreading = False
-        self._number_proc = 3
-        self._read_count_limit = None
+        self._number_proc = 2
+        self._read_count_limit = 0
 
     @property
     def read_count_limit(self) -> int:
@@ -172,7 +172,8 @@ class LogReaderBaseVector(LogBase):
                                 text += read_text
                                 search_event = RePatterns.re_new_event.search(text)
                             if not search_event:
-                                raise ValueError('event not found')
+                                break
+                                # raise ValueError('event not found')
                         
                         minutes = search_event.group(1)
                         seconds = search_event.group(2)
@@ -224,12 +225,16 @@ class LogReaderBaseVector(LogBase):
         if event_process_object.len_arr == 1:
             next_match = RePatterns.re_new_event_findall_last.match(event_process_object.text, pos=event_process_object.current_pos)
         else:
-            next_match = RePatterns.re_new_event_findall.match(event_process_object.text, pos=event_process_object.current_pos)
+            next_match = RePatterns.re_new_event_findall.search(event_process_object.text, pos=event_process_object.current_pos)
         
         if not next_match:
             event_process_object.skip_group = True
             return
 
+        pos, endpos = next_match.regs[0]
+        if pos != event_process_object.current_pos:
+            raise ValueError('error of processing, first symbol not event begin')
+        
         # event_process_object.current_pos = len(event_process_object.text)
         # event_process_object.skip_group = True
 
@@ -250,9 +255,9 @@ class LogReaderBaseVector(LogBase):
         event_time_str = f"{file_object.date_hour_str}{minutes}{seconds}{microseconds}"
         event_time = file_object.date_hour + time_delta
         event_line = next_match.group(0)
-        event_len = len(event_line)
+        event_len = endpos - pos
 
-        event_process_object.current_pos += event_len
+        event_process_object.current_pos = endpos
         if self._tech_log_period.filter_time:
             filter_time_result = self.filter_time(event_time)
             if filter_time_result == -1:
@@ -337,26 +342,18 @@ class LogReaderBaseVector(LogBase):
             tech_log_event = TechLogEvent(
                                 time=datetime.now(),
                                 file=file_object,
-                                file_pos=0,
-                                duration=0,
-                                name='',
-                                level='',
-                                time_str='',
-                                text='', 
-                                # event=raw_log_event,
-                                event_len=0,
                                 rphost=rphost
                                 )
 
             event_process_object.tech_log_event = tech_log_event
             event_process_object.f = f
-            # event_process_object.current_pos_bytes = 0
-            prev_position = 0
             arr100 = np.r_[0:1200:1]
             cnt_vectorize = 0
             for _ in range(cnt_reads):
-                # prev_position = f.tell
-                read_text = f.read(size_read)
+                try:
+                    read_text = f.read(size_read)
+                except:
+                    break
                 if read_text:
                     if read_text[-1] == '\xef\xbf\xbd':
                         f.seek(f.tell()-1)
@@ -379,9 +376,6 @@ class LogReaderBaseVector(LogBase):
 
                 vec_event_process2(event_process_object, file_object, arr100)
                 
-                if not event_process_object.skip_group:
-                    vec_event_process2(event_process_object, file_object, arr100)
-
                 if not event_process_object.skip_group:
                     while not event_process_object.skip_group:
                         vec_event_process2(event_process_object, file_object, arr100)

@@ -98,13 +98,13 @@ class TechLogWriteFile:
 
 @dataclass()
 class LogEvent:
-    text: str
-    event_len: int
-    file: TechLogFile
-    file_pos: int
-    duration: int
-    name: str
-    level: int
+    text: str = ''
+    event_len: int = 0
+    file: TechLogFile = None
+    file_pos: int = 0
+    duration: int = 0
+    name: str = ''
+    level: int = 0
     time_str: str = ''
     time: datetime = None
     fields_values: object = None

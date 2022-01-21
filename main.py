@@ -1,3 +1,4 @@
+from LogDataclasses import TimePatterns
 import os
 
 from LogTaskCreator import TechLogTaskProcess
@@ -11,10 +12,10 @@ from LogFilter import LogFilterByEventName, LogFilterByField, LogFilterDuration,
 from LogReader import LogReaderStream
 
 profile = True
+init = False
 
 def main():
 
-    path_main = 'logs_test/bill2'
     # log_reader = LogReaderBaseVector('upp', '//office-sql/logz_all/all/rphost_8940/21082315.log')
     # # log_reader = LogReaderBaseVector('upp', '//office-sql/logz_all/all')
     # log_reader.set_time(datetime(2021, 8, 23, 15, 35, 0, 0), datetime(2021, 8, 23, 15, 45,  0, 0))
@@ -68,7 +69,11 @@ def main():
     # log_reader = LogReaderStream('bill_test', 'logs_test/bill/main', 'logs_test/bill/bill_main.json')
     # log_reader.set_time(datetime(2021, 8, 27, 14, 0, 0, 0), datetime(2021, 8, 27, 14, 5,  0, 0))
 
-    log_reader_main = LogReaderStream('bill_test', '//app-bill-nord/logz_full/Logs_full', os.path.join(path_main, 'main.json'))
+    path_main = 'logs_test/ppo2'
+    # path_main = 'logs_test/ppo2_full/PPO_Store_FULL'
+    # log_reader_main = LogReaderStream('bill_test', '//app-bill-nord/logz_full/Logs_full', os.path.join(path_main, 'main.json'))
+    log_reader_main = LogReaderStream('ppo2', 'logs_test/ppo2_full/PPO_Store_FULL', os.path.join(path_main, 'main.json'))
+    # log_reader_main = LogReaderStream('bill_test', '/Volumes/logz_full/Logs_full', os.path.join(path_main, 'main.json'))
     # date1 = datetime(2021, 9, 3, 11, 0, 0, 0)
     # date2 = date1 + timedelta(minutes=5)
     # log_reader_main.set_time(date1, date2)
@@ -85,6 +90,7 @@ def main():
     log_writer_by_minute.by_minute = True
     # log_writer_by_minute.field_as_file = True
     log_writer_by_minute.field_name = 't:connectID'
+    log_writer_by_minute.cached_minutes = 5
 
 
     log_writer_connectid = LogWriteToCatalogByField('write_event', os.path.join(path_main, 'events'))
@@ -108,7 +114,7 @@ def main():
     
     log_event_analyze = LogEventAnalyze('analyze', 'VRSREQUEST', 'VRSRESPONSE',  os.path.join(path_main, 'by_minute'))
 
-    log_filter_duration = LogFilterDuration('more_than_sec', 1_000_000)
+    log_filter_duration = LogFilterDuration('more_than_sec', 1_500_000)
 
     log_write_event = LogWriteToFile('write_to_file', os.path.join(path_main, 'events.log'))
     log_write_event.add_data = True
@@ -132,25 +138,33 @@ def main():
     
     task_process = TechLogTaskProcess('task_p', os.path.join(path_main, 'detail'), 'tla:uuid', 'tla:start_time', 'tla:end_time', 'tla:path', 'tla:rel_path')
     log_extract.connect(task_process)
+    # if init:
+    log_writer_by_minute.init_stream()
+    log_writer_connectid.init_stream()
+    log_write_event.init_stream()
+    log_reader_main.init_stream(datetime.now() - timedelta(days=1))
     
-    # log_writer_by_minute.init_stream()
-    # log_writer_connectid.init_stream()
-    # log_write_event.init_stream()
-    # log_reader_main.init_stream(datetime.now() - timedelta(seconds=10))
+    task_process.init_stream()
+    log_reader_events.init_stream()
+    log_reader_tasks.init_stream()
+    log_reader_main.init_stream()
+    # else:
+    end_time = datetime.strptime('210907180000', TimePatterns.format_time_full)
+    sec30 = timedelta(seconds=30)
+    end_time_all = datetime.strptime('210907200000', TimePatterns.format_time_full)
+    while True:
+        end_time += sec30
+        log_reader_main.set_time(None, end_time)
+        log_writer_by_minute.set_time(None, end_time)
+    # log_reader_main.set_time(end_time=datetime.now() - timedelta(minutes=1))
     
-    # task_process.init_stream()
-    # log_reader_events.init_stream()
-    # log_reader_tasks.init_stream()
-    # log_reader_main.init_stream()
-    
-    log_reader_main.set_time(end_time=datetime.now() - timedelta(seconds=1))
-    
-    log_reader_main.main()
+        log_reader_main.main()
 
-    log_reader_events.main()
+        log_reader_events.main()
 
-    log_reader_tasks.main()
-    
+        log_reader_tasks.main()
+        if end_time >= end_time_all:
+            break
     pass
 
 if __name__ == '__main__':

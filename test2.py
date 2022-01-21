@@ -1,41 +1,77 @@
-from LogDataclasses import RePatterns
-import codecs
-# s = "�ВЖурнале(ДанныеОперации, ПокупательСсылка, ТекстОшибки);\n\t\tОбщийМодуль.ОбщегоНазначения.Модуль : 135 : Запись.Записать();'\n06:14.833035-2,CALL,1,process=rmngr,p:processName=RegMngrCntxt,p:processName=ServerJobExecutorContext,t:clientID=4546,"
+import logging
+import graypy
+import sentry_sdk
+from sentry_sdk.integrations.logging import LoggingIntegration
+from raven import Client
 
-file_name = 'logs\\Logs_full\\rphost_4180\\21082311.log'
 
-with open(file_name, 'rb') as f:
-    
-    # f_seek = 176580197
-    f_seek = 0
+client = Client('http://a5b69f794db646639939acfa7870c4ae@devops-test:9000/2')
+o = {'test': 'test'}
+o2 = {'fdsa': 'frewq'}
+# client.context.activate()
+# client.context.merge = o2
+client.user_context(o)
+client.extra_context(o2)
+client.captureMessage('raven test error')
+# client.context.clear()
 
-    f.seek(f_seek)
-    # f_seek += 3
-    b_text = f.read(21349)
 
-    text = b_text.decode('utf-8', 'replace')
+# sentry_logging = LoggingIntegration(
+#     level=logging.INFO,        # Capture info and above as breadcrumbs
+#     event_level=logging.ERROR  # Send errors as events
+# )
+# sentry_sdk.init(
+#     dsn="http://a5b69f794db646639939acfa7870c4ae@devops-test:9000/2",
+#     integrations=[sentry_logging]
+# )
+# o = {'test': 'test'}
+# sentry_sdk.set_context('context', o)
 
-    # if bytes(text[0], 'utf-8') == b'\xef\xbf\xbd':
-    #     text = text[1:]
-    #     f_seek += 1
+# logging.error('test error2')
 
-    # rs2 = rs2[1:]
-    match = RePatterns.re_new_event.search(text[5:6])
-    inc = 219
+# my_logger = logging.getLogger('test_logger')
+# my_logger.setLevel(logging.DEBUG)
 
-    # text = rs2.encode('utf8')
+# handler = graypy.GELFUDPHandler('10.1.252.193', 30057)
+# my_logger.addHandler(handler)
 
-    # f.seek(f_seek + inc)
-    # text_after = f.read(1000)
+# my_logger.debug('Test Graylog message')
+# o = {
+#     "version": "1.1",
+#     "host": "onyx-app-dev",
+#     "short_message": "ВнешниеОбработки.Создание",
+#     "full_message": "C:\\\\Users\\\\kosichkin_m_a\\\\AppData\\\\Local\\\\Temp\\\\v8_9F7B_7b.epf",
+#     "timestamp": 1630994830,
+#     "level": 1,
+#     "context": "client",
+#     "user": "Косичкин Максим Андреевич",
+#     "owner": "МетодыУправленияОсновнымиПроцессами",
+#     "duration": 138,
+#     "event": "ВнешниеОбработки.Создание",
+#     "app": "Srvr=\"onyx-app-dev:3541\";Ref=\"retail_own_tester_Kosichkin\";",
+#     "app_type": "1C",
+#     "session": 2,
+#     "connection": 10,
+#     "timezone": "Europe/Moscow",
+#     "configuration_1C": "Розница"
+# }
 
-    text_before = text[:match.start()]
-    b_text_before = bytes(text_before, 'utf-8')
-    len_text_before = len(b_text_before)
-    
-    last_actual_seek_position = f_seek + len_text_before + 1
 
-    f.seek(last_actual_seek_position)
-    text2 = f.read(100)
-    match_event = RePatterns.re_new_event.match(text2)
-    print(text2[:20])
 
+
+# import logging
+# import graypy
+
+# my_logger = logging.getLogger('test_logger')
+# my_logger.setLevel(logging.DEBUG)
+
+# handler = graypy.GELFUDPHandler('10.0.196.22', 81)
+# my_logger.addHandler(handler)
+
+# o = {
+#     'app': 'holding_trusov.',
+#     'source': 'onyx-sql-dev0',
+#     'event': 'test python'
+# }
+
+# my_logger.debug(o)

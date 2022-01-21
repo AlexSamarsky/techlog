@@ -4,12 +4,13 @@ import shutil
 import os
 import re
 from typing import List
-from LogBase import LogBase
-from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, TechLogWriteFile, TimePatterns, RePatterns
 from pathlib import Path
-from Timer import MicroTimer
 import multiprocessing as mp
 import time
+from datetime import datetime, timedelta
+
+from LogBase import LogBase
+from LogDataclasses import TechLogEvent, TechLogPeriod, TechLogFile, TechLogWriteFile, TimePatterns, RePatterns
 
 class LogWriteToConsole(LogBase):
 
@@ -200,9 +201,18 @@ class LogWriteToCatalogByField(LogWriteToFile):
         self._time_str_len = 8
         self._field_as_file = False
         self._single_file = False
-
+        self._cached_minutes = 0
+        
         self.file_name = file_name
 
+    @property
+    def cached_minutes(self) -> int:
+        return self._cached_minutes
+    
+    @cached_minutes.setter
+    def cached_minutes(self, cached_minutes) -> None:
+        self._cached_minutes = cached_minutes
+    
     @property
     def field_as_file(self) -> bool:
         return self._field_as_file
@@ -301,3 +311,37 @@ class LogWriteToCatalogByField(LogWriteToFile):
     #     super().execute_end()
         # print(self.get_file_name.cache_info())
 
+    def execute_begin(self) -> None:
+        super().execute_begin()
+        if self._cached_minutes:
+            self._files_path = self.file_name
+            self.seek_files()
+            if self._tech_log_period.end_time:
+                date_calc = min(self._tech_log_period.end_time, datetime.now())
+            else:
+                date_calc = datetime.now()
+            file_max_date_cache = datetime.strptime(datetime.strftime(date_calc, TimePatterns.format_time_minute), TimePatterns.format_time_minute) \
+                - timedelta(minutes=(self.cached_minutes+1))
+            for file_object in self._files_array:
+                file_p = Path(file_object.full_path)
+                file_stem = file_p.stem
+                # datetime.strptime(datetime.strftime(d, p), p) - timedelta(minutes=(5+1))
+                self.set_time(file_max_date_cache)
+                try:
+                    if len(file_stem) == 10:
+                        file_date = datetime.strptime(file_stem, TimePatterns.format_time_minute)
+                        if self.filter_time(file_date) == -1:
+                            os.remove(file_p)
+                            pass
+                        # if file_p.parent:
+                        #     if not os.listdir(file_p.parent):
+                        #         print(file_p.parent)
+                        #         shutil.rmtree(file_p.parent)
+                except:
+                    pass
+
+            walk = list(os.walk(self.file_name))
+            for path, _, _ in walk[::-1]:
+                if not os.listdir(path):
+                    if path != self.file_name:
+                        shutil.rmtree(path)
